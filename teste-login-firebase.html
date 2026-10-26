@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark light">
+<title>Foto Studio Stefani — Teste de login Firebase</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color-scheme:dark;--bg:#101827;--card:#182337;--line:#34425c;--text:#eff3fc;--muted:#b0bdd2;--blue:#95aaff;--good:#68e1b7;--warn:#ffcf85}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}body{display:grid;place-items:center;padding:18px}
+main{max-width:550px;width:100%;border:1px solid var(--line);background:var(--card);border-radius:20px;padding:28px 22px;box-shadow:0 20px 70px #060c17aa}
+h1{font-size:26px;letter-spacing:-.5px;margin:5px 0 11px}p{line-height:1.6}small,.sub{color:var(--muted)}.kicker{letter-spacing:1px;color:var(--blue);font-weight:750;font-size:12px}.info{border:1px solid #3a4a69;border-radius:11px;background:#22314b;padding:12px 14px;color:#d9e4fb;font-size:14px;line-height:1.6;margin:20px 0}
+button{border:0;border-radius:12px;cursor:pointer;background:#87a1ff;color:#0a1633;font:inherit;font-weight:740;padding:13px 15px;min-height:46px}button:disabled{opacity:.55;cursor:not-allowed}.secondary{background:#2d3b54;color:#fff}.controls{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.controls button{flex:1}
+#profile{display:none;border-top:1px solid var(--line);padding-top:18px;margin-top:16px}.row{margin:13px 0}.label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}.value{font-weight:650;overflow-wrap:anywhere}.code{display:block;background:#0d1729;padding:12px;border-radius:9px;user-select:all;font:14px ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}.copy{margin-top:8px}.success{color:var(--good)}.error{color:#ffb3b9}#status{min-height:26px;font-size:14px}footer{margin-top:15px;font-size:12px;line-height:1.55;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<div class="kicker">FOTO STUDIO STEFANI · TESTE DE ACESSO</div>
+<h1>Identificar as duas contas Google</h1>
+<p class="sub">Este teste serve apenas para registrar seu login no Firebase Authentication e mostrar o identificador da conta.</p>
+<div class="info">🔒 <strong>Seus dados da gráfica continuam protegidos.</strong> Esta página não acessa o Firestore, não lê OS e não altera o site principal.</div>
+<div class="controls"><button id="login" disabled>Entrar com Google</button><button id="logout" class="secondary" style="display:none">Sair</button></div>
+<div id="status" role="status" aria-live="polite">Carregando conexão com Firebase…</div>
+<section id="profile">
+  <p class="success"><strong>✓ Login realizado no Firebase Authentication</strong></p>
+  <div class="row"><span class="label">Conta Google</span><div id="email" class="value"></div></div>
+  <div class="row"><span class="label">Identificador Firebase (UID)</span><code class="code" id="uid"></code><button class="secondary copy" id="copyUID">Copiar UID</button></div>
+  <p class="sub"><small>O UID identifica esta conta nas regras de segurança. Ele não é uma senha. Somente entrar com Google <em>não</em> concede acesso aos dados da gráfica.</small></p>
+</section>
+<footer>Projeto: grafica-foto-studio-stefani. Teste separado da versão 2.0. O acesso às informações continuará bloqueado até configurarmos a permissão específica das duas contas.</footer>
+</main>
+<script type="module">
+const config={
+  apiKey:'AIzaSyBBnGapBX5IGycr352xVUoOmLNlvXQvgUA',
+  authDomain:'grafica-foto-studio-stefani.firebaseapp.com',
+  projectId:'grafica-foto-studio-stefani',
+  storageBucket:'grafica-foto-studio-stefani.firebasestorage.app',
+  messagingSenderId:'125973803467',
+  appId:'1:125973803467:web:0458a4cc125f2ea9ea864e'
+};
+const $=id=>document.getElementById(id);
+const status=(message,isError=false)=>{$('status').textContent=message;$('status').className=isError?'error':'';};
+try {
+ const [{initializeApp},{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}]=await Promise.all([
+    import('https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js')
+ ]);
+ const app=initializeApp(config);const auth=getAuth(app);auth.languageCode='pt';
+ const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+ $('login').disabled=false;
+ onAuthStateChanged(auth,user=>{
+   $('login').style.display=user?'none':'inline-block';
+   $('logout').style.display=user?'inline-block':'none';
+   $('profile').style.display=user?'block':'none';
+   if(user){$('email').textContent=user.email||'(E-mail não disponível)';$('uid').textContent=user.uid;status('Conta identificada. Copie o UID para autorizar o acesso depois.');}
+   else { $('uid').textContent='';$('email').textContent='';status('Pronto. Toque em “Entrar com Google”.'); }
+ },e=>status('Não foi possível verificar a conta: '+e.message,true));
+ $('login').addEventListener('click',async()=>{
+   $('login').disabled=true;status('Abrindo login do Google…');
+   try {await signInWithPopup(auth,provider);}
+   catch(e){
+    const messages={
+     'auth/popup-blocked':'O Chrome bloqueou a janela de login. Permita pop-ups para este site e tente novamente.',
+     'auth/popup-closed-by-user':'A janela de login foi fechada antes de concluir. Tente de novo.',
+     'auth/unauthorized-domain':'O domínio deste site não está autorizado no Firebase Authentication.',
+     'auth/cancelled-popup-request':'O login anterior foi cancelado. Tente novamente.'
+    };
+    status((messages[e.code]||'Erro ao entrar: '+(e.code||e.message)),true);
+   }finally{$('login').disabled=false;}
+ });
+ $('logout').addEventListener('click',async()=>{try{await signOut(auth);}catch(e){status('Erro ao sair: '+e.message,true);}});
+ $('copyUID').addEventListener('click',async()=>{
+   const uid=$('uid').textContent;
+   try{await navigator.clipboard.writeText(uid);status('UID copiado.');}
+   catch{status('Não foi possível copiar automaticamente. Pressione o UID para selecioná-lo e copie.');}
+ });
+}catch(e){status('Não foi possível carregar o Firebase. Confira sua conexão com a internet e atualize a página. '+e.message,true);}
+</script>
+</body>
+</html>
