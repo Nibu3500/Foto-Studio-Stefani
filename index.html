@@ -869,6 +869,18 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 @media(max-width:720px){.os-preview-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.os-preview-summary{grid-template-columns:1fr 1fr}.os-preview-summary>div:last-child{grid-column:1/-1}#modalRoot .os-preview-modal .modal-content{padding:11px}#modalRoot .os-preview-modal .modal-footer{flex-wrap:wrap}.os-preview-footer-total{width:100%}}
 @media(max-width:430px){.os-preview-fields{grid-template-columns:minmax(0,1fr)}.os-preview-fields .wide{grid-column:auto}.os-preview-item-head{flex-wrap:wrap}.os-preview-item-head .os-preview-item-tools{margin-left:auto}}
 
+
+/* Busca de serviços na prévia: acessível, responsiva e sem salvar na nuvem. */
+.os-pv-service-combo{display:flex;flex-direction:column;gap:5px;min-width:0}
+.os-pv-service-combo>label{font-size:11px;font-weight:750;color:var(--muted)}
+.os-pv-service-combo>.input{width:100%;min-width:0;min-height:39px}
+.os-pv-service-help{color:var(--muted);font-size:10px;line-height:1.45}
+.os-pv-suggest{display:flex;flex-direction:column;gap:3px;padding:5px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;max-height:220px;overflow-y:auto}
+.os-pv-suggest[hidden]{display:none}
+.os-pv-suggestion{display:block;width:100%;text-align:left;border:0;border-radius:7px;padding:9px 10px;background:var(--panel);color:var(--ink);font:600 12px/1.45 Inter,system-ui,sans-serif;cursor:pointer}
+.os-pv-suggestion:hover,.os-pv-suggestion:focus-visible{background:var(--accent-soft);color:var(--accent)}
+.os-pv-no-results{font-size:11px;color:var(--muted);padding:9px}
+
 /* V21 — contato do cliente e instalações */
 .v21-contact-line{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:5px;font-size:12px}
 .v21-contact-line .button{min-height:26px;padding:4px 7px;font-size:11px}
@@ -2167,9 +2179,42 @@ function v20SetArtQuantity(o,i,q){
 function v20ServiceRequirements(){db.settings.finishRequirements??={};return db.settings.finishRequirements;}
 
 function openOSPreview(){
+ // Usa apenas os serviços ativos, como no cadastro oficial. Nenhum dado da prévia é salvo.
+ const serviceNames=v17AvailableServices();
+ const sampleService=(word,fallback)=>serviceNames.find(x=>normalizedSearch(x).includes(word))||serviceNames[fallback]||'';
+ const normalizeService=x=>normalizedSearch(x).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+ function editDistance(a,b){
+  // Distância de edição: útil para "baner" -> "Banner", sem correção silenciosa.
+  const prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+   let prior=prev[0];prev[0]=i;
+   for(let j=1;j<=b.length;j++){
+    const cur=prev[j];
+    prev[j]=Math.min(prev[j]+1,prev[j-1]+1,prior+(a[i-1]===b[j-1]?0:1));
+    prior=cur;
+   }
+  }
+  return prev[b.length];
+ }
+ function serviceCandidates(text){
+  const q=normalizeService(text);
+  if(!q)return serviceNames.slice(0,10).map(name=>({name,score:50,similar:false}));
+  return serviceNames.map(name=>{
+   const val=normalizeService(name),parts=val.split(' ').filter(Boolean);
+   if(val===q)return {name,score:0,similar:false};
+   if(val.startsWith(q))return {name,score:10+val.length-q.length,similar:false};
+   if(val.includes(q))return {name,score:30+val.indexOf(q),similar:false};
+   if(parts.some(w=>w.startsWith(q)))return {name,score:45,similar:false};
+   if(q.length<3)return null;
+   const closest=Math.min(editDistance(q,val),...parts.map(w=>editDistance(q,w)));
+   const threshold=Math.min(4,Math.max(1,Math.floor(q.length*.28)));
+   return closest<=threshold?{name,score:80+closest,similar:true}:null;
+  }).filter(Boolean).sort((x,y)=>x.score-y.score||x.name.localeCompare(y.name,'pt-BR')).slice(0,9);
+ }
+ const exactService=text=>serviceNames.find(x=>normalizeService(x)===normalizeService(text))||null;
  const state={items:[
-  {id:1,service:'Banner',description:'Banner promocional',qty:1,width:100,height:150,total:110,finish:'Bainha e ilhós',open:true},
-  {id:2,service:'Caneca personalizada',description:'Arte para caneca',qty:1,width:'',height:'',total:35,finish:'Não precisa',open:false}
+  {id:1,service:sampleService('banner',0),description:'Banner promocional',qty:1,width:100,height:150,total:110,open:true},
+  {id:2,service:sampleService('caneca',1),description:'Arte para caneca',qty:1,width:'',height:'',total:35,open:false}
  ],nextId:3,payments:[],nextPaymentId:1};
  const n=x=>{const v=Number(x);return Number.isFinite(v)&&v>0?v:0;};
  const money=x=>brl(Math.round((x+Number.EPSILON)*100)/100);
@@ -2222,7 +2267,11 @@ function openOSPreview(){
  tools.before(top);
  document.querySelector('#modalRoot .modal-footer').innerHTML='<strong class="os-preview-footer-total">Total: <span id="osPvFooterTotal">R$ 0,00</span></strong><button class="button" type="button" id="osPvClose">Fechar teste</button><button class="button os-preview-demo-button" type="button" id="osPvFakeSave">✓ Simular salvamento</button>';
  document.getElementById('osPvClose').addEventListener('click',closeModal);
- document.getElementById('osPvFakeSave').addEventListener('click',()=>notify('Simulação concluída! Nenhuma OS foi criada e nenhum dado foi enviado ao Firebase.'));
+ document.getElementById('osPvFakeSave').addEventListener('click',()=>{
+  const invalid=state.items.find(it=>!exactService(it.service));
+  if(invalid){notify('Escolha um serviço cadastrado nas sugestões antes de simular o salvamento.');return;}
+  notify('Simulação concluída! Nenhuma OS foi criada e nenhum dado foi enviado ao Firebase.');
+ });
  const area=document.getElementById('osPreviewRoot');
  const brief=it=>[n(it.qty)+' un',it.width&&it.height?it.width+' × '+it.height+' cm':'',money(n(it.total))].filter(Boolean).join(' · ');
  const itemHTML=(it,k)=>`<article class="os-preview-item" data-pv-id="${it.id}">
@@ -2231,18 +2280,35 @@ function openOSPreview(){
    <span class="os-preview-item-tools"><strong class="os-preview-value">${money(n(it.total))}</strong><button type="button" class="button small danger" data-pv-action="remove-item" data-id="${it.id}" ${state.items.length===1?'disabled':''} title="Remover serviço do teste">✕</button></span>
   </div>
   ${it.open?`<div class="os-preview-item-body"><div class="os-preview-fields">
-   <label>Serviço<input class="input" data-pv-field="service" list="osPvServiceOptions" value="${safe(it.service)}" placeholder="Ex.: Banner, caneca..."></label>
+   <div class="os-pv-service-combo">
+    <label for="osPvService${it.id}">Serviço cadastrado *</label>
+    <input class="input" id="osPvService${it.id}" data-pv-field="service" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="osPvSuggest${it.id}" value="${safe(it.service)}" placeholder="Digite para buscar..." spellcheck="true">
+    <div class="os-pv-suggest" role="listbox" id="osPvSuggest${it.id}" hidden></div>
+    <small class="os-pv-service-help">Digite para ver os serviços ativos e sugestões de correção.</small>
+   </div>
    <label class="wide">Descrição<input class="input" data-pv-field="description" value="${safe(it.description)}" placeholder="Detalhes do serviço"></label>
    <label>Quantidade<input class="input" data-pv-field="qty" type="number" min="1" step="1" value="${safe(it.qty)}"></label>
    <label>Largura (cm)<input class="input" data-pv-field="width" type="number" min="0" step=".1" value="${safe(it.width)}"></label>
    <label>Altura (cm)<input class="input" data-pv-field="height" type="number" min="0" step=".1" value="${safe(it.height)}"></label>
    <label>Valor total deste serviço (R$)<input class="input" data-pv-field="total" type="number" min="0" step=".01" value="${safe(it.total)}"></label>
-   <label>Acabamento<select class="select" data-pv-field="finish">${['Não precisa','Bainha e ilhós','Bastão e ponteiras','Outro acabamento'].map(x=>`<option ${x===it.finish?'selected':''}>${x}</option>`).join('')}</select></label>
   </div></div>`:''}
  </article>`;
- const list=document.createElement('datalist');list.id='osPvServiceOptions';
- list.innerHTML=['Banner','Adesivo','Caneca personalizada','Foto 3x4','Foto 10x15','DTF UV','Camiseta personalizada','Placa PVC','Lona','Cartão de visita'].map(x=>`<option value="${safe(x)}"></option>`).join('');
- area.appendChild(list);
+ function renderServiceSuggestions(row){
+  const input=row?.querySelector('[data-pv-field="service"]');
+  const list=row?.querySelector('.os-pv-suggest');
+  if(!input||!list)return;
+  const found=serviceCandidates(input.value);
+  list.innerHTML=found.length?found.map(x=>`<button type="button" role="option" class="os-pv-suggestion" data-pv-action="choose-service" data-name="${safe(x.name)}">${x.similar?'💡 Você quis dizer: ':'✓ '}${safe(x.name)}</button>`).join(''):'<div class="os-pv-no-results">Nenhum serviço semelhante encontrado entre os cadastrados e ativos.</div>';
+  list.hidden=false;
+  input.setAttribute('aria-expanded','true');
+  const hint=row.querySelector('.os-pv-service-help');
+  if(hint)hint.textContent=exactService(input.value)?'✓ Serviço cadastrado encontrado.':!serviceNames.length?'Não há serviços ativos cadastrados.':'Selecione uma opção da lista; nomes digitados com erro recebem sugestões.';
+ }
+ function hideSuggestions(row){
+  const list=row?.querySelector('.os-pv-suggest');
+  if(list)list.hidden=true;
+  row?.querySelector('[data-pv-field="service"]')?.setAttribute('aria-expanded','false');
+ }
  function renderItems(){area.querySelector('#osPvItems').innerHTML=state.items.map(itemHTML).join('');updateTotals();}
  function updateTotals(){
   const total=itemsSum(),received=paidSum(),due=Math.max(0,total-received);
@@ -2253,26 +2319,55 @@ function openOSPreview(){
   box.innerHTML=state.payments.map(p=>`<div class="os-preview-payment-line"><span>${safe(p.method)} · <strong>${money(p.amount)}</strong></span><button type="button" class="button small danger" data-pv-action="remove-payment" data-id="${p.id}">Remover</button></div>`).join('')||'<small class="hintline">Nenhum pagamento registrado neste teste.</small>';
   updateTotals();
  }
- area.addEventListener('input',e=>{
-  const field=e.target.dataset.pvField,row=e.target.closest('[data-pv-id]');if(!row||!field)return;
-  const it=state.items.find(x=>String(x.id)===row.dataset.pvId);if(!it)return;
-  it[field]=['qty','width','height','total'].includes(field)?e.target.value===''?'':Number(e.target.value):e.target.value;
+ function syncPreviewItem(row,it){
   row.querySelector('.os-preview-item-name').textContent=(state.items.indexOf(it)+1)+'. '+(it.service||'Novo serviço');
   row.querySelector('.os-preview-item-summary').textContent=brief(it);
   row.querySelector('.os-preview-value').textContent=money(n(it.total));
   updateTotals();
+ }
+ area.addEventListener('input',e=>{
+  const field=e.target.dataset.pvField,row=e.target.closest('[data-pv-id]');if(!row||!field)return;
+  const it=state.items.find(x=>String(x.id)===row.dataset.pvId);if(!it)return;
+  it[field]=['qty','width','height','total'].includes(field)?e.target.value===''?'':Number(e.target.value):e.target.value;
+  syncPreviewItem(row,it);
+  if(field==='service')renderServiceSuggestions(row);
  });
- area.addEventListener('change',e=>{
-  if(e.target.dataset.pvField==='finish'){const row=e.target.closest('[data-pv-id]'),it=state.items.find(x=>String(x.id)===row?.dataset.pvId);if(it)it.finish=e.target.value;}
+ area.addEventListener('focusin',e=>{
+  if(e.target.matches('[data-pv-field="service"]'))renderServiceSuggestions(e.target.closest('[data-pv-id]'));
+ });
+ area.addEventListener('focusout',e=>{
+  if(e.target.matches('[data-pv-field="service"]')){
+   const row=e.target.closest('[data-pv-id]');
+   setTimeout(()=>{if(row?.isConnected&&!row.contains(document.activeElement))hideSuggestions(row);},160);
+  }
+ });
+ area.addEventListener('keydown',e=>{
+  if(!e.target.matches('[data-pv-field="service"]'))return;
+  const row=e.target.closest('[data-pv-id]');
+  if(e.key==='Escape'){hideSuggestions(row);return;}
+  if(e.key==='Enter'){
+   const first=row.querySelector('.os-pv-suggest:not([hidden]) [data-pv-action="choose-service"]');
+   if(first){e.preventDefault();first.click();}
+  }
  });
  area.addEventListener('click',e=>{
   const b=e.target.closest('[data-pv-action]');if(!b)return;
   const cmd=b.dataset.pvAction,id=Number(b.dataset.id);
-  if(cmd==='toggle-item'){
+  if(cmd==='choose-service'){
+    const row=b.closest('[data-pv-id]'),it=state.items.find(x=>String(x.id)===row?.dataset.pvId);
+    const match=serviceNames.find(x=>x===b.dataset.name);
+    if(it&&row&&match){
+     it.service=match;
+     row.querySelector('[data-pv-field="service"]').value=match;
+     syncPreviewItem(row,it);
+     hideSuggestions(row);
+     row.querySelector('[data-pv-field="description"]')?.focus();
+    }
+  }else if(cmd==='toggle-item'){
     const it=state.items.find(x=>x.id===id);if(it){it.open=!it.open;renderItems();}
   }else if(cmd==='add-item'){
     state.items.forEach(x=>x.open=false);
-    state.items.push({id:state.nextId++,service:'',description:'',qty:1,width:'',height:'',total:0,finish:'Não precisa',open:true});
+    state.items.push({id:state.nextId++,service:'',description:'',qty:1,width:'',height:'',total:0,open:true});
     renderItems();
     area.querySelector('[data-pv-field="service"]')?.focus();
   }else if(cmd==='remove-item'){
