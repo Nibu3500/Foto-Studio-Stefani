@@ -2443,6 +2443,7 @@ function newOS(id,addItem=false){
  let items=structuredClone(orderItems(o));if(addItem)items.push({id:rand(),service:'',description:'',quantity:1,unitPrice:null,total:0,priceBasis:'total',status:'A produzir',widthCm:null,heightCm:null,materialOrigin:'',productionMaterialType:''});
  let pays=structuredClone(o.payments||[]);
  const collapsedItems=new Set(items.slice(1).map(x=>x.id));
+ if(addItem&&items.length>1)collapsedItems.delete(items[items.length-1].id);
  const paymentMarkup=()=>`<div class="payment-lines">${pays.map((p,i)=>`<div class="payment-line"><span><strong>${safe(p.method)}</strong> · ${brl(p.amount)} <small class="v21-net-info">${v21PaymentText(p)}</small></span><button type="button" class="button small danger remove-payment" data-i="${i}">Remover</button></div>`).join('')||'<span class="hintline">Nenhum pagamento lançado.</span>'}</div>`;
  const serviceOptions=chosen=>'<option value=>Selecione o serviço</option>'+options([...new Set([...db.settings.services,...db.orders.flatMap(orderServices),...(chosen?[chosen]:[])])].filter(s=>s&&(!v17DisabledService(s)||s===chosen)&&(s===chosen||!(db.settings.renamedServices||{})[s])).sort((a,b)=>a.localeCompare(b,'pt-BR')),chosen||'');
  function renderItem(i,k){
@@ -2728,6 +2729,7 @@ function newOS(id,addItem=false){
  };
  $('#paymentsDisplay').addEventListener('click',e=>{const b=e.target.closest('.remove-payment');if(!b)return;collectItems();pays.splice(Number(b.dataset.i),1);$('#paymentsDisplay').innerHTML=paymentMarkup();updateTotals()});
  drawItems();
+ if(addItem)$('#v6ItemList .v6-edit-item:last-child .v6-i-service')?.focus();
  if(old)$('#osModalTools').insertAdjacentHTML('afterbegin',`<button type="button" class="button soft" id="returnOSFocus">← Voltar à ficha</button>`);
  $('#returnOSFocus')?.addEventListener('click',()=>openOSFocus(id));
 }
