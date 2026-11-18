@@ -4616,7 +4616,7 @@ function v14AttachDrag(){const svg=$('#v14Svg');if(!svg||v13PrintValues()?.previ
 function v14AutoArrange(){const p=v13PrintValues();if(!p||!(p.width>0&&p.across>0&&p.q>0))return;
  v14Positions=v14LayoutFor(p.across,p.feed,p.q,p.width,p.margin);v14ManualLayout=false;v13ManualPrint=false;v13PrintPreview();}
 function v13ProductionPage(){const c=v13Current();if(!c)return heading('Produção','Selecione uma OS.');const {o,i,f}=c,p=f.print||{},locked=!!f.printConfirmed,starting=o.status==='A produzir';
- const preferredId=i.materialId||(!i.mainMaterialType?(v25ServiceMaterialConfig(i.service).materialId||mainRuleOf(serviceProcessFor(i.service))?.materialId):'');
+ const preferredId=i.materialId||(!i.mainMaterialType?(mainRuleOf(serviceProcessFor(i.service))?.materialId||''):'');
  const preferred=db.materials.find(m=>m.id===preferredId&&!m.archived&&['m','m²','rolo'].includes(m.unit)&&isProductionMaterial(m));
  const material=p.materialId||preferred?.id||(!i.mainMaterialType?db.materials.find(m=>isProductionMaterial(m)&&/lona|vinil|adesiv/i.test(m.name))?.id:'')||'';
  const ink=p.inkCMYK||{};
