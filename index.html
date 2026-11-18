@@ -605,6 +605,11 @@ html[data-theme=dark] .pill.blue{background:#253d61;color:#8cc1ff}html[data-them
 .test-header strong{font-size:14px}.test-header span{opacity:.8}.test-tools{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}.test-tools button{background:#ffffff20;border:1px solid #ffffff50;border-radius:7px;color:white;padding:7px 11px;font-size:12px;font-weight:700}.test-tools button:hover{background:#ffffff38}
 .test-modal-open{overflow:hidden!important}.modal-backdrop{overflow:hidden;overscroll-behavior:contain}.modal{min-height:0;overflow:hidden;max-height:calc(100dvh - 30px)}.modal form#modalForm{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}.modal form#modalForm>.modal-content{flex:1;min-height:0;overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}.modal-header,.modal-footer{flex-shrink:0} .modal-backdrop:has(.os-focus-modal){padding:7px}
 .os-dim{color:var(--accent)!important;font-weight:800}.bulk-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;margin:12px 0}.bulk-bar>.select{width:210px;max-width:100%;flex:1 1 150px}.bulk-bar>.os-search-inline{flex:1 1 255px;min-width:190px;width:auto;max-width:none}.os-top-actions{width:100%;justify-content:flex-end}@media(max-width:560px){.bulk-bar>.os-search-inline{flex:1 1 100%;width:100%}.bulk-bar #bulkCount{width:100%}}.bulk-bar>small{width:100%;font-size:11px;color:var(--muted)}.os-bulk-check,#selectAllOS{width:17px;height:17px;accent-color:var(--accent);cursor:pointer}
+/* OS em foco ficam no topo e ganham destaque até a próxima troca de etapa. */
+.os-orders-table tr.os-focus-priority>td{background:color-mix(in srgb,#ac8cff 14%,var(--panel))!important}
+.os-orders-table tr.os-focus-priority>td:first-child{border-left:5px solid #9660f7}
+.os-orders-table tr.os-focus-priority>td:nth-child(2){border-left:3px solid #9660f7}
+.os-focus-tag{display:inline-flex;align-items:center;margin-left:8px;padding:2px 7px;border:1px solid color-mix(in srgb,#9660f7 40%,var(--line));border-radius:99px;background:color-mix(in srgb,#9660f7 15%,var(--panel));color:var(--ink);font-size:10px;font-weight:800;white-space:nowrap;vertical-align:middle}
 .test-overview{margin-bottom:16px}.test-overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.test-overview-item{display:flex;flex-direction:column;text-align:left;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;color:var(--ink);padding:14px;min-width:0}.test-overview-item:hover{border-color:var(--accent)}.test-overview-item span{font-size:12px;color:var(--muted)}.test-overview-item strong{font-size:27px}.test-bar{height:7px;background:var(--line);border-radius:12px;overflow:hidden}.test-bar i{height:100%;display:block;background:var(--accent);border-radius:12px}.test-numbers{display:flex;gap:16px;flex-wrap:wrap;margin-top:13px;font-size:12px}.test-numbers span{border:1px solid var(--line);border-radius:7px;padding:8px 10px}
 .material-manage{display:grid;gap:8px}.material-manage-row{display:grid;grid-template-columns:minmax(150px,2fr) repeat(4,minmax(70px,1fr));gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px}.material-manage-row label{display:flex;gap:5px;align-items:center}.conference-list{max-height:none;overflow:visible}
 @media(max-width:840px){.test-header{position:relative}.test-tools{margin-left:0}.test-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.material-manage-row{grid-template-columns:1fr 1fr}.material-manage-row strong{grid-column:1/-1}}
@@ -1144,6 +1149,38 @@ let followStageOn=true;
 try{followStageOn=localStorage.getItem(followStageKey)!=='0'}catch(e){}
 let editingOrderId=null, inlineDraftPayments=[];
 const selectedOrders=new Set();
+// Destaques de trabalho locais: não alteram o Firestore e não se confundem com status.
+const selectedOrderStages=new Map();
+const selectedOrdersKey='stefani_os_em_foco_v1';
+try{
+ const saved=JSON.parse(localStorage.getItem(selectedOrdersKey)||'[]');
+ if(Array.isArray(saved))for(const entry of saved){
+  if(entry&&typeof entry.id==='string'&&typeof entry.status==='string'){
+   selectedOrders.add(entry.id);selectedOrderStages.set(entry.id,entry.status);
+  }
+ }
+}catch(e){}
+function saveSelectedOrderFocus(){
+ try{localStorage.setItem(selectedOrdersKey,JSON.stringify([...selectedOrders].map(id=>({id,status:selectedOrderStages.get(id)})).filter(x=>typeof x.status==='string')))}catch(e){}
+}
+function markOrderFocus(id,checked,save=true){
+ const o=db.orders.find(x=>x.id===id);
+ if(checked&&o){selectedOrders.add(id);selectedOrderStages.set(id,o.status)}
+ else{selectedOrders.delete(id);selectedOrderStages.delete(id)}
+ if(save)saveSelectedOrderFocus();
+}
+function reconcileOrderFocus(){
+ // A página renderiza antes do login; só compare etapas depois de ler a nuvem.
+ if(!window.studioCloudPilot?.isReady?.())return;
+ const current=new Map(db.orders.map(o=>[o.id,o.status]));
+ let changed=false;
+ for(const id of selectedOrders){
+  if(!current.has(id)||current.get(id)!==selectedOrderStages.get(id)){
+   selectedOrders.delete(id);selectedOrderStages.delete(id);changed=true;
+  }
+ }
+ if(changed)saveSelectedOrderFocus();
+}
 const panoramaKey='studio_os_panorama_collapsed_v1';
 let panoramaCollapsed=false;
 const panoramaState={mode:'all',from:today(),to:today()};
@@ -1559,7 +1596,7 @@ function runBulk(kind){
    if(o.status==='Arte'&&candidate.status==='A produzir'&&orderItems(o).some(i=>serviceProcessFor(i.service))){skipped++;continue;} // Etapa Arte exige conferência individual.
   candidate.statusChangedAt=today();Object.assign(o,candidate);changed++;
  }
- selectedOrders.clear();persist();render();notify(`${changed} OS atualizada(s); ${skipped} ignorada(s) por segurança ou sem mudança.`);
+ selectedOrders.clear();selectedOrderStages.clear();saveSelectedOrderFocus();persist();render();notify(`${changed} OS atualizada(s); ${skipped} ignorada(s) por segurança ou sem mudança.`);
 }
 function metrics(){const active=db.orders.filter(o=>!isCanceled(o)),gross=sum(active.filter(o=>!isProposal(o)),o=>o.total),received=sum(active,paid),fee=sum(active,fees),net=received-fee,spentPurchases=sum(db.purchases.filter(x=>x.paid),totalPurchase),spentExpenses=sum(db.expenses.filter(x=>x.paid),x=>x.value),owedOS=sum(active,o=>Math.max(0,num(o.total)-paid(o))),pendingPurchases=sum(db.purchases.filter(x=>!x.paid),totalPurchase),pendingExpenses=sum(db.expenses.filter(x=>!x.paid),x=>x.value);return {gross,received,fee,net,spentPurchases,spentExpenses,owedOS,pendingPurchases,pendingExpenses,balance:net-spentPurchases-spentExpenses}}
 function heading(title,subtitle){return `<div class="heading"><div><div class="eyebrow">STUDIO GESTÃO</div><h1>${title}</h1><p>${subtitle}</p></div></div>`}
@@ -1828,7 +1865,7 @@ function ordersPage(){
    <div class="os-filter-count" id="ordersFilterCount" aria-live="polite"></div>
   </div>
  </div>
- <div class="bulk-bar card"><strong id="bulkCount">0 selecionadas</strong><input id="searchOrders" class="search os-search-inline" type="search" placeholder="🔎 Buscar nº, cliente, telefone ou serviço..." aria-label="Pesquisar ordens de serviço" value="${safe(orderFilters.search)}" autocomplete="off"><button type="button" class="button small primary" data-action="bulk-next">→ Próxima etapa</button><button type="button" class="button small danger" data-action="bulk-cancel">Cancelar selecionadas</button><small>Pesquise nesta barra; selecione OS para avançar ou cancelar em lote. O status de cada OS continua editável na própria linha.</small></div>
+ <div class="bulk-bar card"><strong id="bulkCount">0 selecionadas</strong><input id="searchOrders" class="search os-search-inline" type="search" placeholder="🔎 Buscar nº, cliente, telefone ou serviço..." aria-label="Pesquisar ordens de serviço" value="${safe(orderFilters.search)}" autocomplete="off"><button type="button" class="button small primary" data-action="bulk-next">→ Próxima etapa</button><button type="button" class="button small danger" data-action="bulk-cancel">Cancelar selecionadas</button><small>☑ Marque as OS que está fazendo: elas ficam destacadas no topo desta lista até mudar de etapa. As ações em lote continuam disponíveis.</small></div>
  <div class="card os-stage-filters" aria-label="Filtros das etapas de produção">
   <div id="stageFilterRoot">${stageChips()}</div>
  </div>
@@ -1839,11 +1876,17 @@ function ordersPage(){
  <p class="hintline">Escolha uma etapa acima para visualizar apenas os pedidos que precisam de atenção. Etapas vazias desaparecem. As concluídas ficam ocultas por padrão; use “A receber” para consultar inclusive dívidas de OS concluídas. O botão Próxima Etapa avança as fases. No acabamento, verifica os pagamentos registrados; OS importadas com valores não conferidos solicitam confirmação antes de liberar a retirada. A conclusão exige quitação registrada. As taxas são descontadas do recebimento da gráfica.</p>`;
 }
 function rowsOrders(list){
- return list.slice().sort((a,b)=>{const aa=statusesDefault.indexOf(a.status),bb=statusesDefault.indexOf(b.status);return (aa<0?statusesDefault.length:aa)-(bb<0?statusesDefault.length:bb)||num(b.number)-num(a.number)}).map(o=>{
+ reconcileOrderFocus();
+ return list.slice().sort((a,b)=>{
+  const pinned=Number(selectedOrders.has(b.id))-Number(selectedOrders.has(a.id));
+  if(pinned)return pinned;
+  const aa=statusesDefault.indexOf(a.status),bb=statusesDefault.indexOf(b.status);
+  return (aa<0?statusesDefault.length:aa)-(bb<0?statusesDefault.length:bb)||num(b.number)-num(a.number)
+ }).map(o=>{
   const target=nextStageTarget(o),remaining=amountOwed(o);
   const paymentNote=o.financialUnverified?'<small class="owed-amount">Pagamento a conferir · Excel</small>':isCanceled(o)?'<small>Cancelada · sem cobrança</small>':!hasPrice(o)?'<small class="owed-amount">Pendente · preço a definir</small>':isProposal(o)?'<small class="owed-amount">Aguardando confirmação do cliente</small>':remaining>=.01?`<small class="owed-amount">Pendente · falta ${brl(remaining)}</small>`:'<small class="settled-amount">Pagamento integral</small>';
   const manualNote=o.manualNext&&o.next&&!db.settings.statuses.includes(o.next)?`<small title="${safe(o.next)}">Nota: ${safe(o.next)}</small>`:'';
-  return `<tr class="${editingOrderId===o.id?'os-row-open':''}" style="--order-accent:${panoramaStatusColor(o.status)}" data-stage="${safe(o.status)}" data-order-row="${safe(o.id)}"><td><input class="os-bulk-check" type="checkbox" data-id="${safe(o.id)}" ${selectedOrders.has(o.id)?'checked':''} aria-label="Selecionar OS ${safe(o.number)}"></td><td><div class="os-first-cell"><button type="button" class="button small soft os-edit-pencil" data-action="edit-os" data-id="${safe(o.id)}" aria-expanded="${editingOrderId===o.id}" aria-label="Editar OS ${safe(o.number)} na própria linha" title="Editar OS na própria linha">✎</button><span><strong>#${safe(o.number)} · ${safe(o.client)}</strong><small>${dateLabel(o.date)}</small>${v21PhoneButtons(o)}</span></div></td>
+  return `<tr class="${editingOrderId===o.id?'os-row-open':''} ${selectedOrders.has(o.id)?'os-focus-priority':''}" style="--order-accent:${panoramaStatusColor(o.status)}" data-stage="${safe(o.status)}" data-order-row="${safe(o.id)}"><td><input class="os-bulk-check" type="checkbox" data-id="${safe(o.id)}" ${selectedOrders.has(o.id)?'checked':''} aria-label="Selecionar OS ${safe(o.number)}"></td><td><div class="os-first-cell"><button type="button" class="button small soft os-edit-pencil" data-action="edit-os" data-id="${safe(o.id)}" aria-expanded="${editingOrderId===o.id}" aria-label="Editar OS ${safe(o.number)} na própria linha" title="Editar OS na própria linha">✎</button><span><strong>#${safe(o.number)} · ${safe(o.client)}</strong>${selectedOrders.has(o.id)?'<span class="os-focus-tag">📌 Em foco</span>':''}<small>${dateLabel(o.date)}</small>${v21PhoneButtons(o)}</span></div></td>
    <td><strong>${multiOrder(o)?`🎨 ${o.items.length} serviços`:safe(o.service)}</strong><small>${safe(o.description)}</small>${hasLooseMaterial(o)?'<small class="pill blue">♻ Material avulso</small>':''}${o.widthCm&&o.heightCm?`<small class="os-dim">▣ ${dec(o.widthCm,1)} × ${dec(o.heightCm,1)} cm</small>`:''}</td>
    <td><strong>${hasPrice(o)?brl(o.total):'A definir'}</strong><small>Recebido: ${brl(paid(o))}</small>${paymentNote}</td>
    <td><select class="inline-select order-status" data-id="${safe(o.id)}" aria-label="Status da OS ${safe(o.number)}">${options(orderedStatuses([...db.settings.statuses,o.status]),o.status)}</select></td>
@@ -2568,7 +2611,7 @@ function requestLocalReset(){notify("Limpeza integral indisponível no sistema o
   if(value('resetConfirmation').trim().toUpperCase()!=='APAGAR'){notify('Digite APAGAR para confirmar a exclusão.');$('#resetConfirmation')?.focus();return false}
   if(!window.confirm('Última confirmação: apagar PERMANENTEMENTE todos os dados desta cópia local?'))return false;
   db=blank();
-  selectedOrders.clear();editingOrderId=null;inlineDraftPayments=[];
+  selectedOrders.clear();selectedOrderStages.clear();saveSelectedOrderFocus();editingOrderId=null;inlineDraftPayments=[];
   Object.keys(tableSearch).forEach(k=>tableSearch[k]='');
   stockFilters.categories.clear();stockFilters.unit='';stockFilters.level='';stockFilters.control='';
   orderFilters.statuses.clear();orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.dateMode='all';
@@ -3865,7 +3908,7 @@ $('#content').addEventListener('change',e=>{const c=e.target.closest('[data-v21-
  if(e.target.id==='filterOrderDateMonth'){if(/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value))orderFilters.dateMonth=e.target.value;refreshOrdersList();return;}
  if(e.target.id==='filterOrderDateFrom'){if(validISO(e.target.value))orderFilters.dateFrom=e.target.value;refreshOrdersList();return;}
  if(e.target.id==='filterOrderDateTo'){if(validISO(e.target.value))orderFilters.dateTo=e.target.value;refreshOrdersList();return;}
- if(e.target.id==='selectAllOS'){for(const o of filteredOrders()){if(e.target.checked)selectedOrders.add(o.id);else selectedOrders.delete(o.id)}refreshOrdersList();return;}if(e.target.classList.contains('os-bulk-check')){if(e.target.checked)selectedOrders.add(e.target.dataset.id);else selectedOrders.delete(e.target.dataset.id);updateBulkControls();return;}if(e.target.classList.contains('os-completion-date')){changeCompletionDate(e.target.dataset.id,e.target.value);return;}if(['dashMode','dashMonth','dashYear','dashFrom','dashTo','dashChartGroup'].includes(e.target.id)){const v=e.target.value;if(e.target.id==='dashMode')dashState.mode=v;if(e.target.id==='dashChartGroup'&&['auto','month','year'].includes(v))dashState.chartGroup=v;if(e.target.id==='dashMonth'&&/^\d{4}-\d{2}$/.test(v))dashState.month=v;if(e.target.id==='dashYear'&&/^\d{4}$/.test(v))dashState.year=Number(v);if(e.target.id==='dashFrom'&&/^\d{4}-\d{2}-\d{2}$/.test(v))dashState.from=v;if(e.target.id==='dashTo'&&/^\d{4}-\d{2}-\d{2}$/.test(v))dashState.to=v;render();return}if(e.target.classList.contains('order-status'))setStatus(e.target.dataset.id,e.target.value);if(e.target.classList.contains('order-filter')){orderFilters[e.target.dataset.filter]=e.target.value;refreshOrdersList();}if(e.target.id==='hidePaidCompleted'){orderFilters.showPaidCompleted=!e.target.checked;refreshOrdersList();}if(e.target.id==='osFollowStage'){followStageOn=e.target.checked;try{localStorage.setItem(followStageKey,followStageOn?'1':'0')}catch(err){}notify(followStageOn?'Acompanhamento automático ativado.':'Acompanhamento automático desativado.');}if(e.target.id==='autoNext'){db.settings.autoNext=e.target.checked;persist();render();notify('Preferência salva.')}if(e.target.id==='v18StockEnabled'){db.settings.stockDeductionEnabled=e.target.checked;persist();render();notify(e.target.checked?'Descontos de estoque reativados. Pendências anteriores não serão baixadas.':'Estoque pausado: conclua as OS sem bloqueios nem baixas.');return;}if(e.target.classList.contains('fee-edit')){const n=Number(e.target.value),method=e.target.dataset.method;if(!Number.isFinite(n)||n<0||n>100){notify('A taxa deve ficar entre 0% e 100%.');render();return}db.settings.fees[method]=n;persist();notify(`Taxa de ${method} atualizada.`)}});
+ if(e.target.id==='selectAllOS'){for(const o of filteredOrders())markOrderFocus(o.id,e.target.checked,false);saveSelectedOrderFocus();refreshOrdersList();return;}if(e.target.classList.contains('os-bulk-check')){markOrderFocus(e.target.dataset.id,e.target.checked);refreshOrdersList();return;}if(e.target.classList.contains('os-completion-date')){changeCompletionDate(e.target.dataset.id,e.target.value);return;}if(['dashMode','dashMonth','dashYear','dashFrom','dashTo','dashChartGroup'].includes(e.target.id)){const v=e.target.value;if(e.target.id==='dashMode')dashState.mode=v;if(e.target.id==='dashChartGroup'&&['auto','month','year'].includes(v))dashState.chartGroup=v;if(e.target.id==='dashMonth'&&/^\d{4}-\d{2}$/.test(v))dashState.month=v;if(e.target.id==='dashYear'&&/^\d{4}$/.test(v))dashState.year=Number(v);if(e.target.id==='dashFrom'&&/^\d{4}-\d{2}-\d{2}$/.test(v))dashState.from=v;if(e.target.id==='dashTo'&&/^\d{4}-\d{2}-\d{2}$/.test(v))dashState.to=v;render();return}if(e.target.classList.contains('order-status'))setStatus(e.target.dataset.id,e.target.value);if(e.target.classList.contains('order-filter')){orderFilters[e.target.dataset.filter]=e.target.value;refreshOrdersList();}if(e.target.id==='hidePaidCompleted'){orderFilters.showPaidCompleted=!e.target.checked;refreshOrdersList();}if(e.target.id==='osFollowStage'){followStageOn=e.target.checked;try{localStorage.setItem(followStageKey,followStageOn?'1':'0')}catch(err){}notify(followStageOn?'Acompanhamento automático ativado.':'Acompanhamento automático desativado.');}if(e.target.id==='autoNext'){db.settings.autoNext=e.target.checked;persist();render();notify('Preferência salva.')}if(e.target.id==='v18StockEnabled'){db.settings.stockDeductionEnabled=e.target.checked;persist();render();notify(e.target.checked?'Descontos de estoque reativados. Pendências anteriores não serão baixadas.':'Estoque pausado: conclua as OS sem bloqueios nem baixas.');return;}if(e.target.classList.contains('fee-edit')){const n=Number(e.target.value),method=e.target.dataset.method;if(!Number.isFinite(n)||n<0||n>100){notify('A taxa deve ficar entre 0% e 100%.');render();return}db.settings.fees[method]=n;persist();notify(`Taxa de ${method} atualizada.`)}});
 $('#content').addEventListener('input',e=>{if(e.target.id==='v17SearchService'){v17Search=e.target.value;$('#v17ServicesList').innerHTML=v17ServiceCards();return;}if(e.target.id==='v17SearchLibrary'){v17Search=e.target.value;$('#v17LibraryList').innerHTML=v16FinishCards(db.finishes.filter(f=>!f.archived&&normalizedSearch(f.name+' '+(f.services||[]).join(' ')).includes(normalizedSearch(v17Search))&&(v17Filter==='all'||(v17Filter==='active')===(f.active!==false))).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')));return;}if(e.target.id==='v16SearchFinishes'){v16FinishQuery=e.target.value;$('#v16FinishCards').innerHTML=v16FinishCards(db.finishes.filter(f=>!f.archived&&normalizedSearch([f.name,...f.services].join(' ')).includes(normalizedSearch(v16FinishQuery))).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')));return;}if(e.target.dataset.listSearch){const type=e.target.dataset.listSearch;tableSearch[type]=e.target.value;const map={compras:['#purchaseTableBody',purchaseTableRows],estoque:['#stockTableBody',stockTableRows],despesas:['#expenseTableBody',expenseTableRows]};const v=map[type];if(v&&$(v[0]))$(v[0]).innerHTML=v[1]();if(type==='estoque'&&$('#stockFilterCount'))$('#stockFilterCount').innerHTML=`<strong>${filteredStock().length}</strong> de ${db.materials.length} materiais exibidos`;return;}if(e.target.id==='searchOrders'){orderFilters.search=e.target.value;refreshOrdersList();}if(e.target.id==='ieTotal')updateInlinePaymentSummary();});
 $('#content').addEventListener('input',()=>{if(page==='v13print'||page==='v13finish')v20SaveScreenDraft();});
  $('#content').addEventListener('change',()=>{if(page==='v13print'||page==='v13finish')v20SaveScreenDraft();});
@@ -3902,7 +3945,7 @@ $('#importFile').addEventListener('change',async e=>{
     const word=window.prompt('Para SUBSTITUIR os dados locais, digite SUBSTITUIR:');if(word!=='SUBSTITUIR'){notify('Substituição cancelada.');return false}
     db=incoming;
    }else db=merged.result;
-   db.settings.useAutoConsumption=false;db.demo=false;v16SeedFinishes();v16MigrateLegacyFinishes();v18SeedOSShadow();selectedOrders.clear();stockExpanded.clear();persist();notify('Backup importado: '+(mode==='replace'?'dados substituídos.':'dados mesclados.'));return true;
+   db.settings.useAutoConsumption=false;db.demo=false;v16SeedFinishes();v16MigrateLegacyFinishes();v18SeedOSShadow();selectedOrders.clear();selectedOrderStages.clear();saveSelectedOrderFocus();stockExpanded.clear();persist();notify('Backup importado: '+(mode==='replace'?'dados substituídos.':'dados mesclados.'));return true;
   },'Confirmar importação');
   $('#v7ImportBackupFirst').onclick=exportBackup;
  }catch(err){notify('Erro ao ler JSON: '+(err?.message||err));}
