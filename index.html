@@ -908,6 +908,13 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 .os-v23-client-suggestions[hidden]{display:none}
 .os-v23-client-option{display:block;width:100%;border:0;border-radius:7px;background:transparent;color:var(--ink);padding:10px 12px;text-align:left;cursor:pointer;font-size:12px}
 .os-v23-client-option:hover,.os-v23-client-option:focus-visible{background:var(--accent-soft);color:var(--accent)}
+.os-v23-phone-combo{position:relative;min-width:0}
+.os-v23-phone-combo>.input{width:100%}
+.os-v23-phone-clients{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow:auto;z-index:100;padding:5px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:11px}
+.os-v23-phone-clients[hidden]{display:none}
+.os-v23-phone-hint{font-size:11px;color:var(--muted);padding:9px 10px}
+.os-v23-phone-option{display:block;width:100%;border:0;border-radius:7px;background:transparent;color:var(--ink);padding:10px 12px;text-align:left;cursor:pointer;font-size:12px}
+.os-v23-phone-option:hover,.os-v23-phone-option:focus-visible{background:var(--accent-soft);color:var(--accent)}
 .os-v23-item{margin-bottom:9px;padding:0!important;overflow:visible;border-left-width:4px}
 .os-v23-item-head{padding:11px 12px;margin:0!important;gap:9px}
 .os-v23-item-head .button{margin-left:0!important}
@@ -2503,7 +2510,7 @@ function newOS(id,addItem=false){
   <div class="os-v23-card-heading"><h3>👤 Cliente</h3><span>Dados do pedido</span></div>
   <div class="formgrid os-v23-client-grid">
   ${field('Nome do cliente *',`<div class="os-v23-client-combo"><input class="input" id="oClient" type="text" maxlength="90" required autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="os-v23-client-suggestions" value="${safe(o.client)}" placeholder="Digite o nome para localizar..."><div class="os-v23-client-suggestions" id="os-v23-client-suggestions" role="listbox" hidden></div></div>`)}
-  ${field('Telefone / WhatsApp (opcional)',`<input class="input" id="oPhone" type="tel" maxlength="24" value="${safe(v21PhoneInfo(o.phone).valid?v21PhoneInfo(o.phone).formatted:(o.phone||''))}" placeholder="(31) 99999-9999">`)}
+  ${field('Telefone / WhatsApp (opcional)',`<div class="os-v23-phone-combo"><input class="input" id="oPhone" type="tel" inputmode="tel" autocomplete="off" maxlength="24" aria-autocomplete="list" aria-expanded="false" aria-controls="os-v23-phone-clients" value="${safe(v21PhoneInfo(o.phone).valid?v21PhoneInfo(o.phone).formatted:(o.phone||''))}" placeholder="(31) 99999-9999"><div id="os-v23-phone-clients" class="os-v23-phone-clients" role="listbox" hidden></div></div>`)}
   ${field('Observações da OS',`<textarea class="input" id="oNotes" maxlength="600" rows="2" placeholder="Instruções ou recados, se houver">${safe(o.notes||'')}</textarea>`,true)}
   </div>
  </section>
@@ -2642,10 +2649,24 @@ function newOS(id,addItem=false){
  $('#oDate').addEventListener('change',()=>{
   if(deliveryDateAuto)$('#oDeliveryDate').value=nextBusinessDay($('#oDate').value);
  });
- // Cliente: sugestões apenas após digitação; nunca mostrar toda a base ao focar em campo vazio.
+ // Autocomplete de clientes: nunca mostra a lista completa antes de digitar.
  const clientInput=$('#oClient'),clientList=$('#os-v23-client-suggestions');
+ const phoneInput=$('#oPhone'),phoneClientList=$('#os-v23-phone-clients');
  const clientNames=[...new Set(db.orders.map(x=>String(x.client||'').trim()).filter(Boolean))];
+ // As OS mais recentes prevalecem; nomes repetidos e telefones iguais são deduplicados.
+ const phoneHistory=[];
+ const seenPhoneNames=new Set();
+ for(const order of db.orders.slice().reverse()){
+  const name=String(order.client||'').trim(),phone=v21PhoneInfo(order.phone);
+  if(!name||!phone.valid)continue;
+  const key=phone.digits+'|'+normalizedSearch(name);
+  if(seenPhoneNames.has(key))continue;
+  seenPhoneNames.add(key);
+  phoneHistory.push({name,phone});
+ }
+ let autoPhoneName=null; // Não substitui um nome digitado manualmente.
  const hideClientSuggestions=()=>{clientList.hidden=true;clientList.innerHTML='';clientInput.setAttribute('aria-expanded','false');};
+ const hidePhoneClients=()=>{phoneClientList.hidden=true;phoneClientList.innerHTML='';phoneInput.setAttribute('aria-expanded','false');};
  const suggestClients=()=>{
   const query=normalizedSearch(clientInput.value);
   if(!query){hideClientSuggestions();return;}
@@ -2656,14 +2677,14 @@ function newOS(id,addItem=false){
   clientList.hidden=false;clientInput.setAttribute('aria-expanded','true');
  };
  function fillClientPhone(){
-  if($('#oPhone').value.trim())return;
+  if(phoneInput.value.trim())return;
   const name=normalizedSearch(clientInput.value);
   if(!name)return;
   const prior=db.orders.slice().reverse().find(x=>normalizedSearch(x.client)===name&&v21PhoneInfo(x.phone).valid);
-  if(prior)$('#oPhone').value=v21PhoneInfo(prior.phone).formatted;
+  if(prior)phoneInput.value=v21PhoneInfo(prior.phone).formatted;
  }
- const chooseClient=name=>{clientInput.value=name;hideClientSuggestions();fillClientPhone();clientInput.focus();};
- clientInput.addEventListener('input',suggestClients);
+ const chooseClient=name=>{autoPhoneName=null;clientInput.value=name;hideClientSuggestions();hidePhoneClients();fillClientPhone();clientInput.focus();};
+ clientInput.addEventListener('input',()=>{autoPhoneName=null;hidePhoneClients();suggestClients();});
  clientInput.addEventListener('focus',()=>{if(clientInput.value.trim())suggestClients();});
  clientInput.addEventListener('blur',()=>{fillClientPhone();setTimeout(()=>{if(!clientList.contains(document.activeElement))hideClientSuggestions();},120);});
  clientList.addEventListener('mousedown',e=>{if(e.target.closest('[data-client-name]'))e.preventDefault();});
@@ -2675,8 +2696,66 @@ function newOS(id,addItem=false){
    if(first){e.preventDefault();chooseClient(first.dataset.clientName);}
   }
  });
- // Mantém a formatação do telefone já existente.
- $('#oPhone').addEventListener('blur',()=>{const info=v21PhoneInfo($('#oPhone').value);if(info.valid)$('#oPhone').value=info.formatted;});
+ // Busca exata pelo número normalizado. Se o usuário informou apenas 8/9 dígitos,
+ // compara o número local; com DDD, exige igualdade completa.
+ const matchingPhoneClients=()=>{
+  const phone=v21PhoneInfo(phoneInput.value),typed=v21PhoneDigits(phoneInput.value);
+  if(!phone.valid)return [];
+  const localOnly=typed.length===8||typed.length===9;
+  const matches=phoneHistory.filter(entry=>localOnly
+   ?entry.phone.digits.slice(2)===typed
+   :entry.phone.digits===phone.digits);
+  const used=new Set();
+  return matches.filter(entry=>{
+   const key=normalizedSearch(entry.name);
+   if(used.has(key))return false;
+   used.add(key);return true;
+  });
+ };
+ const choosePhoneClient=entry=>{
+  clientInput.value=entry.name;
+  autoPhoneName=entry.name;
+  // Se a consulta foi sem DDD, o histórico fornece o DDD real.
+  const typed=v21PhoneDigits(phoneInput.value);
+  if(typed.length===8||typed.length===9)phoneInput.value=entry.phone.formatted;
+  hidePhoneClients();hideClientSuggestions();
+ };
+ const findClientByPhone=()=>{
+  const matches=matchingPhoneClients();
+  const existing=clientInput.value.trim();
+  const canFill=!existing||(autoPhoneName&&normalizedSearch(existing)===normalizedSearch(autoPhoneName));
+  if(!matches.length){
+   hidePhoneClients();
+   if(canFill&&autoPhoneName){clientInput.value='';autoPhoneName=null;}
+   return;
+  }
+  if(!canFill){hidePhoneClients();return;}
+  if(matches.length===1){choosePhoneClient(matches[0]);return;}
+  if(autoPhoneName){clientInput.value='';autoPhoneName=null;}
+  phoneClientList.innerHTML='<div class="os-v23-phone-hint">Este telefone aparece para mais de um cliente. Escolha o nome:</div>'
+    +matches.map((entry,i)=>`<button class="os-v23-phone-option" type="button" role="option" data-phone-client-index="${i}">${safe(entry.name)}</button>`).join('');
+  phoneClientList.hidden=false;phoneInput.setAttribute('aria-expanded','true');
+ };
+ phoneInput.addEventListener('input',findClientByPhone);
+ phoneInput.addEventListener('focus',()=>{if(phoneInput.value.trim())findClientByPhone();});
+ phoneInput.addEventListener('blur',()=>{
+  const info=v21PhoneInfo(phoneInput.value);
+  if(info.valid)phoneInput.value=info.formatted;
+  setTimeout(()=>{if(!phoneClientList.contains(document.activeElement))hidePhoneClients();},150);
+ });
+ phoneClientList.addEventListener('mousedown',e=>{if(e.target.closest('[data-phone-client-index]'))e.preventDefault();});
+ phoneClientList.addEventListener('click',e=>{
+  const option=e.target.closest('[data-phone-client-index]');if(!option)return;
+  const index=Number(option.dataset.phoneClientIndex),entry=matchingPhoneClients()[index];
+  if(entry)choosePhoneClient(entry);
+ });
+ phoneInput.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){hidePhoneClients();return;}
+  if(e.key==='Enter'&&!phoneClientList.hidden){
+   const first=phoneClientList.querySelector('[data-phone-client-index]');
+   if(first){e.preventDefault();first.click();}
+  }
+ });
  function v22SetInstallation(type){
   const enabled=type==='propria'||type==='terceirizada',third=type==='terceirizada';
   $('#oInstallEnabled').checked=enabled;
