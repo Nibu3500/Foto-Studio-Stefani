@@ -971,6 +971,19 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 @media(max-width:700px){.v24-correct-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:450px){.v24-correct-fields{grid-template-columns:1fr}.v24-correct-summary{grid-template-columns:1fr 1fr}.v24-correct-summary>div:last-child{grid-column:1/-1}#modalRoot .v24-correct-modal .modal-content{padding:11px}}
 
+
+/* V24 — filtro rápido por tipo de material nas Ordens de Serviço. */
+#materialFilterRoot{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.v24-material-filter-head{display:flex;align-items:baseline;gap:8px 16px;flex-wrap:wrap;margin-bottom:11px}
+.v24-material-filter-head strong{font-size:13px;color:var(--ink)}
+.v24-material-filter-head small{font-size:11px;color:var(--muted)}
+.v24-material-chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.v24-material-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:9px 12px;background:var(--panel2);color:var(--ink);font:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+.v24-material-chip>span{display:inline-flex;align-items:center;justify-content:center;min-width:20px;padding:2px 5px;border-radius:999px;background:rgba(127,127,127,.12);font-size:11px;font-variant-numeric:tabular-nums}
+.v24-material-chip:hover,.v24-material-chip:focus-visible{border-color:var(--accent);outline-offset:2px}
+.v24-material-chip.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+@media(max-width:520px){.v24-material-chips{gap:6px}.v24-material-chip{font-size:11px;padding:8px 10px}}
+
 /* V21 — contato do cliente e instalações */
 .v21-contact-line{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:5px;font-size:12px}
 .v21-contact-line .button{min-height:26px;padding:4px 7px;font-size:11px}
@@ -1283,7 +1296,7 @@ function stockFilterControls(){
  <div class="os-filter-count" id="stockFilterCount"><strong>${filteredStock().length}</strong> de ${db.materials.length} materiais exibidos · selecione mais de um grupo</div></div>`;
 }
 const normalizedSearch=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-const orderFilters={statuses:new Set(),search:'',status:'',payment:'',service:'',materialOrigin:'',quickView:'',showPaidCompleted:false,dateMode:'all',dateMonth:today().slice(0,7),dateFrom:today(),dateTo:today()};
+const orderFilters={statuses:new Set(),search:'',status:'',payment:'',service:'',materialOrigin:'',materialType:'',quickView:'',showPaidCompleted:false,dateMode:'all',dateMonth:today().slice(0,7),dateFrom:today(),dateTo:today()};
 const followStageKey='stefani_v8_follow_stage';
 let followStageOn=true;
 try{followStageOn=localStorage.getItem(followStageKey)!=='0'}catch(e){}
@@ -1553,7 +1566,66 @@ function v20SearchOrder(o,rawQuery){
  const q=v21PhoneDigits(rawQuery),isPhone=/^[+()0-9\s-]+$/.test(String(rawQuery).trim());
  return tokens.every(w=>searchable.includes(w))||(isPhone&&q.length>=3&&v21PhoneDigits(o.phone).includes(q));
 }
-function filteredOrders({ignoreStages=false,overrideQuick=null}={}){
+
+// Filtro visual de OS: consulta serviços e materiais existentes, sem modificar estoque.
+const v24MaterialTypes=[
+ ['lona','🖨️ Lona'],['adesivo','🏷️ Adesivo / Vinil'],['papel','📄 Papel'],
+ ['dtfuv','✨ DTF UV'],['pvc','▣ PVC / ACM'],['outros','📦 Outros']
+];
+function v24MaterialTypeFromText(raw){
+ const value=normalizedSearch(raw||'');
+ if(!value)return '';
+ if(/\b(dtf[\s-]*uv|uv[\s-]*dtf)\b/.test(value))return 'dtfuv';
+ if(/\b(pvc|acm)\b/.test(value))return 'pvc';
+ if(/\b(lona|lonas|banner|banners|faixa|faixas|backdrop)\b/.test(value))return 'lona';
+ if(/\b(adesivo|adesiva|adesivos|adesivas|vinil|vinis|perfurado|perfurada|perfurados|perfuradas|plotagem)\b/.test(value))return 'adesivo';
+ if(/\b(papel|papeis|foto|fotos|fotografia|fotografias|polaroid|cartao|cartoes|flyer|flyers|panfleto|panfletos|convite|convites)\b/.test(value))return 'papel';
+ return '';
+}
+function v24MaterialTypeFromMaterial(material){
+ if(!material)return '';
+ const category=normalizedSearch(material.category||'');
+ if(/\b(dtf[\s-]*uv|uv[\s-]*dtf)\b/.test(category))return 'dtfuv';
+ if(/\b(lona|lonas|banner|banners)\b/.test(category))return 'lona';
+ if(/\b(adesivo|adesivos|vinil|vinis)\b/.test(category))return 'adesivo';
+ if(/\b(papel|papeis)\b/.test(category))return 'papel';
+ if(/\b(pvc|acm)\b/.test(category))return 'pvc';
+ return v24MaterialTypeFromText(material.name)||v24MaterialTypeFromText(category);
+}
+function v24OrderMaterialTypes(order){
+ const types=new Set(),items=orderItems(order);
+ for(const item of items){
+  // Material selecionado na impressão prevalece sobre a configuração do processo.
+  const flowMaterialId=item.flowV13?.print?.materialId;
+  const run=db.processRuns.find(r=>r.orderId===order.id&&r.itemId===item.id);
+  const configuredRule=mainRuleOf(run)||mainRuleOf(serviceProcessFor(item.service));
+  const materialId=flowMaterialId||configuredRule?.materialId||item.materialId||(items.length===1?order.materialId:'');
+  const material=materialId?db.materials.find(m=>m.id===materialId):null;
+  // Sem categoria segura, agrupar em Outros em vez de presumir material errado.
+  const kind=material
+   ?(v24MaterialTypeFromMaterial(material)||'outros')
+   :(v24MaterialTypeFromText(item.productionMaterialType)||v24MaterialTypeFromText(item.service)||'outros');
+  types.add(kind);
+ }
+ return [...types];
+}
+function v24MaterialFilterChips(){
+ // Quantidades refletem os demais filtros, mas ignoram somente a seleção atual de material.
+ const visible=filteredOrders({ignoreMaterialType:true});
+ const counts=new Map(v24MaterialTypes.map(function(entry){
+  return [entry[0],visible.filter(o=>v24OrderMaterialTypes(o).includes(entry[0])).length];
+ }));
+ const active=orderFilters.materialType;
+ const head='<div class="v24-material-filter-head"><strong>▧ Tipo de material</strong><small>Identificado automaticamente pelo serviço ou material da produção</small></div>';
+ const all='<button type="button" class="v24-material-chip '+(!active?'active':'')+'" data-action="os-material-type" data-material-type="" aria-pressed="'+(!active)+'">Todos <span>'+visible.length+'</span></button>';
+ const buttons=v24MaterialTypes.map(function(entry){
+  const key=entry[0],label=entry[1],selected=active===key;
+  return '<button type="button" class="v24-material-chip '+(selected?'active':'')+'" data-action="os-material-type" data-material-type="'+key+'" aria-pressed="'+selected+'">'+label+' <span>'+(counts.get(key)||0)+'</span></button>';
+ }).join('');
+ return head+'<div class="v24-material-chips" role="group" aria-label="Filtrar OS pelo tipo de material">'+all+buttons+'</div>';
+}
+
+function filteredOrders({ignoreStages=false,ignoreMaterialType=false,overrideQuick=null}={}){
  const query=normalizedSearch(orderFilters.search);
  const dates=orderDateRange();
  const view=overrideQuick===null?orderFilters.quickView:overrideQuick;
@@ -1561,6 +1633,7 @@ function filteredOrders({ignoreStages=false,overrideQuick=null}={}){
   if(dates&&(!validISO(o.date)||o.date<dates.from||o.date>dates.to))return false;
   if(orderFilters.materialOrigin==='avulso'&&!hasLooseMaterial(o))return false;
   if(orderFilters.materialOrigin==='normal'&&hasLooseMaterial(o))return false;
+  if(!ignoreMaterialType&&orderFilters.materialType&&!v24OrderMaterialTypes(o).includes(orderFilters.materialType))return false;
   if(query&&!v20SearchOrder(o,query))return false;
   // A tela normal nunca mistura concluídas quando a ocultação está ativa.
   // Apenas uma consulta explícita de cobrança/concluídas as revela
@@ -1633,6 +1706,7 @@ function togglePanorama(){
 function refreshOrdersList(){
  const body=$('#ordersBody');if(!body)return;
  const chipRoot=$('#stageFilterRoot');if(chipRoot)chipRoot.innerHTML=stageChips();
+ const materialChipRoot=$('#materialFilterRoot');if(materialChipRoot)materialChipRoot.innerHTML=v24MaterialFilterChips();
  const quickRoot=$('#osQuickViews');if(quickRoot)quickRoot.outerHTML=quickOrderViews();
  const list=filteredOrders();body.innerHTML=rowsOrders(list);
  const panorama=$('#osWorkspace .os-panorama');if(panorama)panorama.outerHTML=panoramaProduction();
@@ -2007,6 +2081,7 @@ function ordersPage(){
  <div class="bulk-bar card"><strong id="bulkCount">0 selecionadas</strong><input id="searchOrders" class="search os-search-inline" type="search" placeholder="🔎 Buscar nº, cliente, telefone ou serviço..." aria-label="Pesquisar ordens de serviço" value="${safe(orderFilters.search)}" autocomplete="off"><button type="button" class="button small primary" data-action="bulk-next">→ Próxima etapa</button><button type="button" class="button small danger" data-action="bulk-cancel">Cancelar selecionadas</button><small>☑ Marque as OS que está fazendo: elas ficam destacadas no topo desta lista até mudar de etapa. As ações em lote continuam disponíveis.</small></div>
  <div class="card os-stage-filters" aria-label="Filtros das etapas de produção">
   <div id="stageFilterRoot">${stageChips()}</div>
+  <div id="materialFilterRoot">${v24MaterialFilterChips()}</div>
  </div>
  <div class="os-workspace ${panoramaCollapsed?'panorama-is-closed':''}" id="osWorkspace">
  <div class="card os-orders-table"><div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="selectAllOS" aria-label="Selecionar todas as OS exibidas"></th><th>OS / Cliente</th><th>Serviço</th><th>Valor / Recebido</th><th>Status</th><th>Próxima etapa</th><th>Ações</th><th>Data de conclusão</th></tr></thead><tbody id="ordersBody">${rowsOrders(filteredOrders())}</tbody></table></div></div>
@@ -4646,7 +4721,7 @@ function handleAction(action,id,element){switch(action){
  case 'stock-package':editPackage(id);break;
  case 'stock-archived':stockShowArchived=!stockShowArchived;render();break;
  case 'stock-scrap':recordScrap(id);break;case 'stock-scrap-used':{const x=db.scraps.find(v=>v.id===id);if(x&&window.confirm('Marcar a sobra como utilizada?')){x.available=false;persist();render()}break;}
- case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'bulk-cancel':runBulk('cancel');break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
+ case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'bulk-cancel':runBulk('cancel');break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'os-material-type':{const chosen=element.dataset.materialType||'';orderFilters.materialType=orderFilters.materialType===chosen?'':chosen;refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.materialType='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
  case 'v20-stock-filter':{const mode=element.dataset.mode||'';stockFilters.conference=stockFilters.conference===mode?'':mode;render();break;}
  case 'v20-adjust-stock':v20AdjustStock(id);break;
  case 'v20-convert-unit':v20ConvertMaterialUnit(id);break;
