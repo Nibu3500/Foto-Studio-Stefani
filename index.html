@@ -881,6 +881,58 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 .os-pv-suggestion:hover,.os-pv-suggestion:focus-visible{background:var(--accent-soft);color:var(--accent)}
 .os-pv-no-results{font-size:11px;color:var(--muted);padding:9px}
 
+
+/* V23 · Cadastro oficial da OS: apresentação aprovada em uma tela, sem alterar o fluxo de gravação. */
+#modalRoot .os-v23-official-modal{width:min(1160px,calc(100vw - 20px));height:min(94dvh,1050px);max-height:94dvh}
+#modalRoot .os-v23-official-modal .modal-content{padding:18px;flex:1;min-height:0;overflow-y:auto}
+#modalRoot .os-v23-official-modal .modal-header{padding:13px 19px;flex-wrap:wrap;gap:10px}
+#modalRoot .os-v23-official-modal .modal-footer{padding:12px 18px;align-items:center;flex-wrap:wrap}
+.os-v23-meta{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.os-v23-meta label{display:flex;flex-direction:column;gap:3px;color:var(--muted);font-size:10px;font-weight:800}
+.os-v23-meta input{width:135px;min-height:32px;font-weight:750;color:var(--accent);font-size:13px}
+.os-v23-footer-total{margin-right:auto;color:var(--ink);font-size:13px}
+.os-v23-footer-total span{color:var(--accent);font-size:18px}
+.os-v23-form{display:flex;flex-direction:column;gap:12px}
+.os-v23-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.os-v23-card-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.os-v23-card-heading h3{margin:0;font-size:15px}
+.os-v23-card-heading>span,.os-v23-card-heading>small{font-size:11px;color:var(--muted)}
+.os-v23-card-heading strong{font-size:12px}
+.os-v23-form .formgrid{gap:10px}
+.os-v23-client-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px}
+.os-v23-client-grid .field.full{grid-column:1/-1}
+.os-v23-client-grid .field textarea{min-height:60px}
+.os-v23-item{margin-bottom:9px;padding:0!important;overflow:visible;border-left-width:4px}
+.os-v23-item-head{padding:11px 12px;margin:0!important;gap:9px}
+.os-v23-item-head .button{margin-left:0!important}
+.os-v23-toggle{display:flex;align-items:center;flex:1;min-width:0;gap:10px;border:0;background:transparent;color:var(--ink);text-align:left;cursor:pointer;padding:4px}
+.os-v23-arrow{font-size:22px;color:var(--accent);line-height:1}
+.os-v23-title-wrap{display:flex;flex-direction:column;gap:2px;min-width:0}
+.os-v23-item-title{font-size:13px;white-space:normal}
+.os-v23-item-summary{font-size:11px;color:var(--muted);font-weight:500;white-space:normal}
+.os-v23-item-value{font-size:13px;color:var(--accent);white-space:nowrap}
+.os-v23-item-fields{padding:12px 15px;border-top:1px solid var(--line)}
+.os-v23-item-fields[hidden]{display:none!important}
+.os-v23-service-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.os-v23-service-grid>.field.full{grid-column:span 2}
+.os-v23-service-grid>.field{min-width:0}
+.os-v23-service-grid .v6-i-subtotal{display:flex;flex-direction:column;justify-content:flex-end}
+.os-v23-service-grid .v6-i-subtotal strong{font-size:15px}
+.os-v23-item-extra{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px}
+.os-v23-item-extra summary{cursor:pointer;color:var(--accent);font-size:12px;font-weight:750}
+.os-v23-item-extra .formgrid{padding-top:12px}
+.os-v23-form .v6-totalbox{margin:0 0 16px}
+.os-v23-totals>div{flex:1 1 160px}
+.os-v23-form .payment-inputs{margin-top:12px}
+.os-v23-extra{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:11px 15px}
+.os-v23-extra>summary{font-size:13px;font-weight:750;color:var(--ink);cursor:pointer}
+.os-v23-extra>.formgrid,.os-v23-extra>.v21-install-panel{margin-top:12px}
+.os-v23-extra .v21-install-panel{margin-bottom:0}
+.os-v23-delivery-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.os-v23-form .v20-service-suggest{z-index:60}
+@media(max-width:780px){.os-v23-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.os-v23-service-grid>.field.full{grid-column:1/-1}.os-v23-item-head{flex-wrap:wrap}.os-v23-item-value{margin-left:auto}}
+@media(max-width:520px){.os-v23-client-grid,.os-v23-delivery-grid{grid-template-columns:1fr}.os-v23-meta input{width:116px}.os-v23-card{padding:12px}#modalRoot .os-v23-official-modal .modal-content{padding:10px}.os-v23-item-head .button{padding:5px 7px}#modalRoot .os-v23-official-modal .modal-footer{gap:8px}}
+
 /* V21 — contato do cliente e instalações */
 .v21-contact-line{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:5px;font-size:12px}
 .v21-contact-line .button{min-height:26px;padding:4px 7px;font-size:11px}
@@ -2390,35 +2442,88 @@ function newOS(id,addItem=false){
  const o=old?structuredClone(old):{id:rand(),number:Math.max(100,...db.orders.map(x=>num(x.number)))+1,date:today(),statusChangedAt:today(),client:'',service:'',description:'',status:'Arte',total:0,priceDefined:false,completedAt:'',notes:'',payments:[],materialId:'',materialQty:0,materialApplied:false,manualNext:false,next:''};
  let items=structuredClone(orderItems(o));if(addItem)items.push({id:rand(),service:'',description:'',quantity:1,unitPrice:null,total:0,priceBasis:'total',status:'A produzir',widthCm:null,heightCm:null,materialOrigin:'',productionMaterialType:''});
  let pays=structuredClone(o.payments||[]);
+ const collapsedItems=new Set(items.slice(1).map(x=>x.id));
  const paymentMarkup=()=>`<div class="payment-lines">${pays.map((p,i)=>`<div class="payment-line"><span><strong>${safe(p.method)}</strong> · ${brl(p.amount)} <small class="v21-net-info">${v21PaymentText(p)}</small></span><button type="button" class="button small danger remove-payment" data-i="${i}">Remover</button></div>`).join('')||'<span class="hintline">Nenhum pagamento lançado.</span>'}</div>`;
  const serviceOptions=chosen=>'<option value=>Selecione o serviço</option>'+options([...new Set([...db.settings.services,...db.orders.flatMap(orderServices),...(chosen?[chosen]:[])])].filter(s=>s&&(!v17DisabledService(s)||s===chosen)&&(s===chosen||!(db.settings.renamedServices||{})[s])).sort((a,b)=>a.localeCompare(b,'pt-BR')),chosen||'');
- const renderItem=(i,k)=>`<article class="v6-edit-item" data-item-index="${k}" data-price-basis="${i.priceBasis==='unit'?'unit':'total'}">
- <div class="v6-edit-item-head"><span class="v6-item-number">${k+1}</span><strong>Serviço ${k+1}</strong><button type="button" class="button small soft v20-duplicate-item" data-index="${k}" title="Copiar tipo de serviço e configurações">⧉ Duplicar</button><button type="button" class="button small danger v6-remove-item" data-index="${k}" ${items.length===1?'disabled':''}>Remover</button></div>
- <div class="formgrid">
- ${field('Tipo de serviço *',`<div class="v20-service-combo"><input class="input v6-i-service" autocomplete="off" required placeholder="Digite para localizar..." value="${safe(i.service||'')}"><div class="v20-service-suggest" hidden></div></div>`)}
- ${field('Etapa deste serviço',`<select class="select v6-i-status">${options(ITEM_STAGES,ITEM_STAGES.includes(i.status)?i.status:'A produzir')}</select>`)}
- ${field('Descrição (opcional)',`<input class="input v6-i-desc" maxlength="150" value="${safe(i.description)}" placeholder="Ex.: banner com ilhós">`,true)}
- ${field('Quantidade (opcional, padrão 1)',`<input type="number" class="input v6-i-qty" min="0.001" step="any" value="${safe(i.quantity||1)}" required>`)}
- ${field('Valor unitário (R$) · editável',`<input type="number" class="input v6-i-price" min="0" step="any" placeholder="0,00" value="${i.unitPrice===null||i.unitPrice===undefined?'':safe(i.unitPrice)}">`)}
- ${field('Valor TOTAL do serviço (R$) · editável',`<input type="number" class="input v6-i-total" min="0" step="0.01" placeholder="0,00" value="${i.unitPrice===null||i.unitPrice===undefined?'':safe(i.priceBasis==='total'&&Number.isFinite(Number(i.total))?i.total:(num(i.quantity)*num(i.unitPrice)).toFixed(2))}">`)}
+ function renderItem(i,k){
+ const isClosed=collapsedItems.has(i.id);
+ const q=num(i.quantity)||1;
+ const summary=[q+' un',i.widthCm>0&&i.heightCm>0?i.widthCm+' × '+i.heightCm+' cm':'',i.unitPrice===null||i.unitPrice===undefined?'Preço a definir':brl(num(i.total))].filter(Boolean).join(' · ');
+ const totalValue=i.unitPrice===null||i.unitPrice===undefined?'':safe(i.priceBasis==='total'&&Number.isFinite(Number(i.total))?i.total:(num(i.quantity)*num(i.unitPrice)).toFixed(2));
+ return `<article class="v6-edit-item os-v23-item" data-item-index="${k}" data-price-basis="${i.priceBasis==='unit'?'unit':'total'}">
+ <div class="v6-edit-item-head os-v23-item-head">
+  <button class="os-v23-toggle" type="button" data-v23-toggle="${k}" aria-expanded="${!isClosed}">
+   <span class="os-v23-arrow">${isClosed?'⌄':'⌃'}</span>
+   <span class="os-v23-title-wrap"><strong class="os-v23-item-title">${safe((k+1)+'. '+(i.service||'Novo serviço'))}</strong><small class="os-v23-item-summary">${safe(summary)}</small></span>
+  </button>
+  <strong class="os-v23-item-value">${i.unitPrice===null||i.unitPrice===undefined?'A definir':brl(num(i.total))}</strong>
+  <button class="button small soft v20-duplicate-item" type="button" data-index="${k}" title="Duplicar serviço">⧉</button>
+  <button class="button small danger v6-remove-item" type="button" data-index="${k}" ${items.length===1?'disabled':''} title="Remover serviço">✕</button>
+ </div>
+ <div class="os-v23-item-fields" ${isClosed?'hidden':''}>
+ <div class="formgrid os-v23-service-grid">
+ ${field('Tipo de serviço *',`<div class="v20-service-combo"><input class="input v6-i-service" autocomplete="off" spellcheck="true" required placeholder="Digite para localizar ou corrigir..." value="${safe(i.service||'')}"><div class="v20-service-suggest" hidden></div></div>`,true)}
+ ${field('Descrição (opcional)',`<input class="input v6-i-desc" maxlength="150" value="${safe(i.description||'')}" placeholder="Ex.: banner promocional">`,true)}
+ ${field('Quantidade',`<input type="number" class="input v6-i-qty" min="0.001" step="any" value="${safe(i.quantity||1)}" required>`)}
  ${field('Largura (cm)',`<input type="number" class="input v6-i-width" min="0" step="0.1" value="${i.widthCm??''}">`)}
  ${field('Altura (cm)',`<input type="number" class="input v6-i-height" min="0" step="0.1" value="${i.heightCm??''}">`)}
- ${field('Necessita acabamento?',`<label class="v20-check-row"><input type="checkbox" class="v20-needs-finish" ${v20NeedsFinish(i)?'checked':''}> Passar pela etapa de acabamento</label>`)}${field('Origem do material',`<select class="select v6-i-origin"><option value="" ${!i.materialOrigin?'selected':''}>Não definido</option><option value="normal" ${i.materialOrigin==='normal'?'selected':''}>Estoque / bobina</option><option value="avulso" ${i.materialOrigin==='avulso'?'selected':''}>♻ Avulso / sobra</option></select>`)}
- <div class="field v6-i-subtotal"><label>Total deste serviço</label><strong>${brl(i.total||0)}</strong></div>
- </div></article>`;
- const body=`<div class="v6-editor-intro">🎨 <strong>Um pedido, vários serviços.</strong> Informe quantidade, preço unitário ou total: os três campos ficam editáveis e se recalculam automaticamente. Os pagamentos continuam na OS inteira.</div>
- <div class="formgrid">${field('Cliente *',inp('oClient',o.client,'text','required maxlength="90"'))}${field('Telefone / WhatsApp (opcional)',`<input class="input" id="oPhone" type="tel" maxlength="24" value="${safe(v21PhoneInfo(o.phone).valid?v21PhoneInfo(o.phone).formatted:(o.phone||''))}" placeholder="(31) 99999-9999">`)}${field('Data (preenchida automaticamente)',inp('oDate',o.date,'date','required'))}${field('Número da OS *',inp('oNumber',o.number,'number','min="1" step="1" required'))}${field('Status geral da OS',sel('oStatus',[...new Set([...db.settings.statuses,o.status])],o.status))}</div>
- <div class="v6-section-heading"><h3>Serviços do pedido</h3><button type="button" class="button primary" id="v6AddItem">＋ Adicionar serviço</button></div>
- <div id="v6ItemList"></div>
- ${v21InstallationMarkup(o.installation)}
- <div class="v6-totalbox"><div><span>Total da OS (soma automática)</span><strong id="v6OrderTotal">${brl(o.total)}</strong><small id="v6TotalNotice">Valores calculados pelos serviços acima.</small></div><div><span>Já recebido</span><strong>${brl(paid(o))}</strong></div></div>
- <p class="hintline">A OS só deve ir para retirada quando todos os itens estiverem como Pronto. A baixa automática de estoque por OS está desligada neste teste local.</p>
- <div class="formgrid">${field('Situação do pagamento',`<select id="oPaymentState" class="select"><option value="pending" ${!o.financialUnverified?'selected':''}>Pendente / pagamentos registrados</option><option value="review" ${o.financialUnverified?'selected':''}>A conferir</option></select>`)}${field('Observações',`<textarea class="input" id="oNotes" maxlength="600">${safe(o.notes||'')}</textarea>`,true)}
- ${old&&o.status==='Concluída'?field('Data de conclusão (editável)',inp('oCompletedAt',o.completedAt||'','date')):''}
- ${o.excelImport?`<div class="field full"><label>Financeiro importado do Excel</label><select id="oExcelFinance" class="select"><option value="review" ${o.financialUnverified?'selected':''}>A conferir</option><option value="confirmed" ${!o.financialUnverified?'selected':''}>Conferido — considerar pagamentos registrados</option></select><details class="excel-original"><summary>Dados originais do Excel</summary><pre>${safe(JSON.stringify(o.excelImport.values||{},null,2))}</pre></details></div>`:''}
- </div><div class="divider"></div>
- <div class="section-title"><h3>Pagamentos recebidos</h3><span class="sub">Parcelas e diferentes formas na OS inteira</span></div>
- <div id="paymentsDisplay">${paymentMarkup()}</div><div class="payment-inputs"><div class="field"><label>Forma</label><select class="select" id="newPayMethod">${options(Object.keys(db.settings.fees),'Pix')}</select></div><div class="field"><label>Valor recebido (R$)</label><input class="input" id="newPayAmount" type="number" min="0.01" step="0.01" placeholder="0,00"></div><button type="button" class="button soft" id="addPayment">＋ Adicionar</button></div><p id="paySummary" class="hintline"></p>`;
+ ${field('Valor total do serviço (R$)',`<input type="number" class="input v6-i-total" min="0" step="0.01" placeholder="0,00" value="${totalValue}">`)}
+ <div class="field v6-i-subtotal"><label>Total deste serviço</label><strong>${i.unitPrice===null||i.unitPrice===undefined?'A definir':brl(i.total||0)}</strong></div>
+ <details class="os-v23-item-extra"><summary>Mais opções do serviço</summary>
+ <div class="formgrid">
+ ${field('Valor unitário (R$)',`<input type="number" class="input v6-i-price" min="0" step="any" placeholder="0,00" value="${i.unitPrice===null||i.unitPrice===undefined?'':safe(i.unitPrice)}">`)}
+ ${field('Etapa deste serviço',`<select class="select v6-i-status">${options(ITEM_STAGES,ITEM_STAGES.includes(i.status)?i.status:'A produzir')}</select>`)}
+ ${field('Origem do material',`<select class="select v6-i-origin"><option value="" ${!i.materialOrigin?'selected':''}>Não definido</option><option value="normal" ${i.materialOrigin==='normal'?'selected':''}>Estoque / bobina</option><option value="avulso" ${i.materialOrigin==='avulso'?'selected':''}>♻ Avulso / sobra</option></select>`)}
+ </div></details>
+ </div></div></article>`;
+}
+ function v23OfficialBody(){
+ const names=[...new Set(db.orders.map(x=>x.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ const statusOptions=[...new Set([...db.settings.statuses,o.status])];
+ return `<div class="os-v23-form">
+ <section class="os-v23-card">
+  <div class="os-v23-card-heading"><h3>👤 Cliente</h3><span>Dados do pedido</span></div>
+  <div class="formgrid os-v23-client-grid">
+  ${field('Nome do cliente *',`<input class="input" id="oClient" type="text" list="os-v23-client-history" maxlength="90" required autocomplete="off" value="${safe(o.client)}" placeholder="Digite o nome para localizar..."><datalist id="os-v23-client-history">${names.map(n=>`<option value="${safe(n)}"></option>`).join('')}</datalist>`)}
+  ${field('Telefone / WhatsApp (opcional)',`<input class="input" id="oPhone" type="tel" maxlength="24" value="${safe(v21PhoneInfo(o.phone).valid?v21PhoneInfo(o.phone).formatted:(o.phone||''))}" placeholder="(31) 99999-9999">`)}
+  ${field('Observações da OS',`<textarea class="input" id="oNotes" maxlength="600" rows="2" placeholder="Instruções ou recados, se houver">${safe(o.notes||'')}</textarea>`,true)}
+  </div>
+ </section>
+ <section class="os-v23-card">
+  <div class="os-v23-card-heading"><h3>▱ Serviços do pedido</h3><button type="button" class="button small primary" id="v6AddItem">＋ Adicionar serviço</button></div>
+  <div id="v6ItemList"></div>
+ </section>
+ <section class="os-v23-card">
+  <div class="os-v23-card-heading"><h3>💳 Pagamento</h3><span>Valores editáveis</span></div>
+  <div class="v6-totalbox os-v23-totals"><div><span>Total da OS</span><strong id="v6OrderTotal">${brl(o.total)}</strong><small id="v6TotalNotice">Soma automática dos serviços.</small></div><div><span>Valor recebido</span><strong id="os-v23-received">${brl(paid(o))}</strong></div><div><span>Falta receber</span><strong id="os-v23-balance">${brl(Math.max(0,num(o.total)-paid(o)))}</strong></div></div>
+  <div class="os-v23-card-heading"><strong>Pagamentos recebidos</strong><small>Parcelas e formas diferentes na mesma OS</small></div>
+  <div id="paymentsDisplay">${paymentMarkup()}</div>
+  <div class="payment-inputs"><div class="field"><label>Forma</label><select class="select" id="newPayMethod">${options(Object.keys(db.settings.fees),'Pix')}</select></div><div class="field"><label>Valor recebido (R$)</label><input class="input" id="newPayAmount" type="number" min="0.01" step="0.01" placeholder="0,00"></div><button type="button" class="button soft" id="addPayment">＋ Adicionar pagamento</button></div>
+  <p id="paySummary" class="hintline"></p>
+ </section>
+ <section class="os-v23-card">
+  <div class="os-v23-card-heading"><h3>📅 Entrega e prioridade</h3><span>Preenchimento opcional</span></div>
+  <div class="formgrid os-v23-delivery-grid">
+   ${field('Previsão de entrega',inp('oDeliveryDate',o.deliveryDate||'','date'))}
+   ${field('Prioridade',sel('oPriority',[...new Set(['Normal','Urgente',o.priority].filter(Boolean))],o.priority||'Normal'))}
+  </div>
+ </section>
+ <details class="os-v23-extra">
+  <summary>🔧 Instalação (opcional)</summary>
+  ${v21InstallationMarkup(o.installation)}
+ </details>
+ <details class="os-v23-extra">
+  <summary>⚙️ Configurações adicionais da OS</summary>
+  <div class="formgrid">
+   ${field('Status geral da OS',sel('oStatus',statusOptions,o.status))}
+   ${field('Situação do pagamento',`<select id="oPaymentState" class="select"><option value="pending" ${!o.financialUnverified?'selected':''}>Pendente / pagamentos registrados</option><option value="review" ${o.financialUnverified?'selected':''}>A conferir</option></select>`)}
+   ${old&&o.status==='Concluída'?field('Data de conclusão (editável)',inp('oCompletedAt',o.completedAt||'','date')):''}
+   ${o.excelImport?`<div class="field full"><label>Financeiro importado do Excel</label><select id="oExcelFinance" class="select"><option value="review" ${o.financialUnverified?'selected':''}>A conferir</option><option value="confirmed" ${!o.financialUnverified?'selected':''}>Conferido — considerar pagamentos registrados</option></select><details class="excel-original"><summary>Dados originais do Excel</summary><pre>${safe(JSON.stringify(o.excelImport.values||{},null,2))}</pre></details></div>`:''}
+  </div>
+ </details>
+ </div>`;
+}
+ const body=v23OfficialBody();
  // O valor editado por último é a referência: alterar quantidade não muda o preço escolhido manualmente.
  const v19Round=(v,d=2)=>Math.round((v+Number.EPSILON)*10**d)/10**d;
  function v19PriceInput(ev){
@@ -2442,10 +2547,13 @@ function newOS(id,addItem=false){
    const qty=Number(v('.v6-i-qty')),p=v('.v6-i-price'),unitPrice=p===''?null:Number(p),basis=el.dataset.priceBasis==='unit'?'unit':'total';
    const totalValue=v('.v6-i-total');
    const total=unitPrice===null?0:(basis==='total'&&totalValue!==''?v19Round(Number(totalValue),2):v19Round(qty*unitPrice,2));
-   return {...prior,id:prior.id||rand(),service:v('.v6-i-service'),description:v('.v6-i-desc').trim()||v('.v6-i-service'),quantity:qty,
+   const service=v('.v6-i-service');
+   const sameService=normalizedSearch(service)===normalizedSearch(prior.service);
+   const requiresFinish=sameService&&typeof prior.needsFinish==='boolean'?prior.needsFinish:v20ServiceRequirements()[service]!==false;
+   return {...prior,id:prior.id||rand(),service,description:v('.v6-i-desc').trim()||service,quantity:qty,
     unitPrice,total,priceBasis:basis,
     status:v('.v6-i-status'),widthCm:v('.v6-i-width')===''?null:Number(v('.v6-i-width')),
-    heightCm:v('.v6-i-height')===''?null:Number(v('.v6-i-height')),needsFinish:!!el.querySelector('.v20-needs-finish')?.checked,materialOrigin:v('.v6-i-origin')};
+    heightCm:v('.v6-i-height')===''?null:Number(v('.v6-i-height')),needsFinish:requiresFinish,materialOrigin:v('.v6-i-origin')};
   });
   return items;
  }
@@ -2455,7 +2563,17 @@ function newOS(id,addItem=false){
   $('#v6OrderTotal').textContent=brl(sumTotal);
   $('#v6TotalNotice').textContent=missing?'Há serviço sem preço definido. Informe todos os preços para receber pagamentos.':'Altere quantidade, valor unitário ou valor total. O sistema recalcula os outros campos.';
   [...document.querySelectorAll('#v6ItemList .v6-edit-item')].forEach((el,k)=>{const n=items[k];el.querySelector('.v6-i-subtotal strong').textContent=n.unitPrice===null?'A definir':brl(n.total)});
-  const received=sum(pays,p=>p.amount);$('#paySummary').textContent=`Recebido ${brl(received)} · Taxas ${brl(sum(pays,p=>num(p.amount)*num(p.feePct)/100))} · Líquido estimado ${brl(received-sum(pays,p=>num(p.amount)*num(p.feePct)/100))} · ${missing?'Preços pendentes':`Falta ${brl(Math.max(0,sumTotal-received))}`}`;
+  const received=sum(pays,p=>p.amount);
+  $('#os-v23-received').textContent=brl(received);
+  $('#os-v23-balance').textContent=missing?'A definir':brl(Math.max(0,sumTotal-received));
+  $('#os-v23-footer-total').textContent=brl(sumTotal);
+  [...document.querySelectorAll('#v6ItemList .v6-edit-item')].forEach((el,k)=>{
+   const item=items[k];
+   el.querySelector('.os-v23-item-title').textContent=(k+1)+'. '+(item.service||'Novo serviço');
+   el.querySelector('.os-v23-item-summary').textContent=[num(item.quantity)+' un',item.widthCm>0&&item.heightCm>0?item.widthCm+' × '+item.heightCm+' cm':'',item.unitPrice===null?'Preço a definir':brl(item.total)].filter(Boolean).join(' · ');
+   el.querySelector('.os-v23-item-value').textContent=item.unitPrice===null?'A definir':brl(item.total);
+  });
+  $('#paySummary').textContent=`Recebido ${brl(received)} · Taxas ${brl(sum(pays,p=>num(p.amount)*num(p.feePct)/100))} · Líquido estimado ${brl(received-sum(pays,p=>num(p.amount)*num(p.feePct)/100))} · ${missing?'Preços pendentes':`Falta ${brl(Math.max(0,sumTotal-received))}`}`;
  }
  function drawItems(){ $('#v6ItemList').innerHTML=items.map(renderItem).join('');updateTotals(); }
  showModal(old?`Editar OS #${o.number}`:'Nova ordem de serviço',body,()=>{
@@ -2466,6 +2584,8 @@ function newOS(id,addItem=false){
   const oldInstallExpense=old?v21InstallExpense(old):null;
   if(!v21ValidateInstallationChange({installation},old))return false;
   if(!client||!validISO(date)||!Number.isSafeInteger(number)||number<1){notify('Informe cliente, número e data válidos.');return false}
+  const deliveryDate=value('oDeliveryDate');
+  if(deliveryDate&&!validISO(deliveryDate)){notify('Confira a previsão de entrega.');return false;}
   if(db.orders.some(x=>x.id!==o.id&&num(x.number)===number)){notify('Já existe uma OS com esse número.');return false}
   if(items.some(i=>!v17ServiceNames().some(n=>normalizedSearch(n)===normalizedSearch(i.service)))){notify('Selecione um Tipo de serviço cadastrado na lista de sugestões.');return false;}
   if(!items.length||items.some(i=>!i.service||!Number.isFinite(i.quantity)||i.quantity<=0||!Number.isFinite(i.total)||!Number.isFinite(i.unitPrice) && i.unitPrice!==null ||i.unitPrice!==null&&(i.unitPrice<0||i.unitPrice>100000000)||i.widthCm!==null&&(!Number.isFinite(i.widthCm)||i.widthCm<0)||i.heightCm!==null&&(!Number.isFinite(i.heightCm)||i.heightCm<0))){notify('Preencha corretamente serviço, descrição, quantidades, medidas e preços.');return false}
@@ -2476,7 +2596,7 @@ function newOS(id,addItem=false){
   if(items.length>1&&['Retirar e pagar','Retirar e já pago','Concluída'].includes(status)&&!items.every(i=>i.status==='Pronto')){notify('Todos os serviços precisam estar Prontos antes de liberar a retirada.');return false}
   // Preserva os campos legados para importação, filtros antigos e cálculos financeiros.
   const first=items[0];const description=items.length===1?first.description:`${items.length} serviços: ${items.map(i=>i.service).join(', ')}`.slice(0,150);
-  const candidate={...o,number,client,phone:phone.valid?phone.digits:'',installation,date,status,items:structuredClone(items),total,priceDefined:hasAllPrices,description,totalOverride:old&&old.totalOverride!==undefined?total:undefined,
+  const candidate={...o,number,client,phone:phone.valid?phone.digits:'',installation,date,status,deliveryDate,priority:value('oPriority')||'Normal',items:structuredClone(items),total,priceDefined:hasAllPrices,description,totalOverride:old&&old.totalOverride!==undefined?total:undefined,
    service:items.length===1?first.service:'Múltiplos serviços',widthCm:items.length===1?first.widthCm:null,heightCm:items.length===1?first.heightCm:null,
    notes:value('oNotes').trim(),payments:structuredClone(pays),
    financialUnverified:o.excelImport?value('oExcelFinance')==='review':value('oPaymentState')==='review'};
@@ -2491,6 +2611,13 @@ function newOS(id,addItem=false){
   if(!old||old.status!==saved.status)v21QueueInstallerReminder(saved,old?.status||'Arte');
   notify(`OS #${number} salva com ${items.length} serviço(s).`);return true;
  },'✓ Salvar OS',true);
+ const modal=$('#modalRoot .modal');
+ modal.classList.add('os-v23-official-modal');
+ $('#osModalTools').insertAdjacentHTML('beforebegin',`<div class="os-v23-meta">
+ <label>OS Nº<input class="input" id="oNumber" type="number" min="1" step="1" required value="${safe(o.number)}"></label>
+ <label>Data<input class="input" id="oDate" type="date" required value="${safe(o.date)}"></label>
+ </div>`);
+ $('#modalForm .modal-footer').insertAdjacentHTML('afterbegin','<strong class="os-v23-footer-total">Total da OS: <span id="os-v23-footer-total">R$ 0,00</span></strong>');
  // Mantém a formatação e a busca do telefone de clientes existentes, sem texto auxiliar.
  $('#oPhone').addEventListener('blur',()=>{const info=v21PhoneInfo($('#oPhone').value);if(info.valid)$('#oPhone').value=info.formatted;});
  $('#oClient').addEventListener('blur',()=>{if($('#oPhone').value.trim())return;const name=normalizedSearch($('#oClient').value);const prior=db.orders.slice().reverse().find(x=>normalizedSearch(x.client)===name&&v21PhoneInfo(x.phone).valid);if(prior)$('#oPhone').value=v21PhoneInfo(prior.phone).formatted;});
@@ -2509,19 +2636,88 @@ function newOS(id,addItem=false){
  document.querySelectorAll('[name="v22InstallChoice"]').forEach(r=>r.addEventListener('change',e=>v22SetInstallation(e.target.value)));
  $('#v22ClearInstall').addEventListener('click',()=>{document.querySelectorAll('[name="v22InstallChoice"]').forEach(r=>r.checked=false);v22SetInstallation('');});
  $('#oInstallCharge').addEventListener('input',()=>{collectItems();updateTotals();});
- $('#v6ItemList').addEventListener('input',e=>{v19PriceInput(e);if(e.target.classList.contains('v6-i-service')){const row=e.target.closest('.v6-edit-item'),check=row?.querySelector('.v20-needs-finish');if(check&&!row.dataset.v20FinishTouched)check.checked=v20ServiceRequirements()[e.target.value]!==false;}collectItems();updateTotals()});
- $('#v6ItemList').addEventListener('change',e=>{v19PriceInput(e);if(e.target.classList.contains('v20-needs-finish'))e.target.closest('.v6-edit-item').dataset.v20FinishTouched='1';collectItems();updateTotals()});
- $('#v6AddItem').onclick=()=>{collectItems();items.push({id:rand(),service:'',description:'',quantity:1,unitPrice:null,total:0,priceBasis:'total',status:'A produzir',widthCm:null,heightCm:null,materialOrigin:''});drawItems()};
- $('#v6ItemList').addEventListener('click',e=>{
-  const duplicate=e.target.closest('.v20-duplicate-item');if(duplicate){collectItems();const idx=Number(duplicate.dataset.index),oldItem=items[idx];if(!oldItem)return;
-   const copy=structuredClone(oldItem);copy.id=rand();copy.flowV13=undefined;copy.productionRunId=undefined;copy.status='Arte';copy.materialApplied=false;
-   copy.description=oldItem.description||'';items.splice(idx+1,0,copy);drawItems();notify('Serviço duplicado. Edite medidas, arte, quantidade e preço da cópia.');return;
+ function v23ServiceSuggestions(input){
+ const wrap=input.closest('.v20-service-combo'),list=wrap?.querySelector('.v20-service-suggest');
+ if(!list)return;
+ const norm=x=>normalizedSearch(x).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+ const distance=(a,b)=>{
+  const prev=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){
+   let diag=prev[0];prev[0]=i;
+   for(let j=1;j<=b.length;j++){const tmp=prev[j];prev[j]=Math.min(prev[j]+1,prev[j-1]+1,diag+(a[i-1]===b[j-1]?0:1));diag=tmp;}
   }
-  const b=e.target.closest('.v6-remove-item');if(!b)return;if(items.length<=1)return;collectItems();items.splice(Number(b.dataset.index),1);drawItems();
+  return prev[b.length];
+ };
+ const q=norm(input.value);
+ const names=v17AvailableServices();
+ const choices=names.map(name=>{
+  const v=norm(name);
+  if(!q)return {name,score:50,similar:false};
+  if(q===v)return {name,score:0,similar:false};
+  if(v.startsWith(q))return {name,score:10+(v.length-q.length),similar:false};
+  if(v.includes(q))return {name,score:30+v.indexOf(q),similar:false};
+  const words=v.split(' ').filter(Boolean);
+  if(words.some(w=>w.startsWith(q)))return {name,score:40,similar:false};
+  if(q.length<3)return null;
+  const dist=Math.min(distance(q,v),...words.map(w=>distance(q,w)));
+  const threshold=Math.min(4,Math.max(1,Math.floor(q.length*.28)));
+  return dist<=threshold?{name,score:70+dist,similar:true}:null;
+ }).filter(Boolean).sort((x,y)=>x.score-y.score||x.name.localeCompare(y.name,'pt-BR')).slice(0,12);
+ list.innerHTML=choices.map(x=>`<button type="button" class="v20-suggestion" data-service="${safe(x.name)}">${x.similar?'💡 Você quis dizer: ':'✓ '}${safe(x.name)}</button>`).join('')||'<div class="v20-no-suggestion">Não encontramos serviço semelhante. Confira em Serviços.</div>';
+ list.hidden=false;
+}
+ $('#v6ItemList').addEventListener('input',e=>{v19PriceInput(e);collectItems();updateTotals();if(e.target.classList.contains('v6-i-service'))v23ServiceSuggestions(e.target);});
+ $('#v6ItemList').addEventListener('change',e=>{v19PriceInput(e);collectItems();updateTotals();});
+ $('#v6AddItem').onclick=()=>{
+  collectItems();
+  for(const x of items)collapsedItems.add(x.id);
+  const newItem={id:rand(),service:'',description:'',quantity:1,unitPrice:null,total:0,priceBasis:'total',status:'A produzir',widthCm:null,heightCm:null,materialOrigin:''};
+  items.push(newItem);collapsedItems.delete(newItem.id);
+  drawItems();
+  $('#v6ItemList .v6-edit-item:last-child .v6-i-service')?.focus();
+ };
+ $('#v6ItemList').addEventListener('click',e=>{
+  const toggle=e.target.closest('[data-v23-toggle]');
+  if(toggle){
+   collectItems();const idx=Number(toggle.dataset.v23Toggle),item=items[idx],row=toggle.closest('.v6-edit-item');if(!item||!row)return;
+   const closed=!collapsedItems.has(item.id);
+   if(closed)collapsedItems.add(item.id);else collapsedItems.delete(item.id);
+   row.querySelector('.os-v23-item-fields').hidden=closed;
+   toggle.setAttribute('aria-expanded',String(!closed));
+   row.querySelector('.os-v23-arrow').textContent=closed?'⌄':'⌃';
+   updateTotals();return;
+  }
+  const duplicate=e.target.closest('.v20-duplicate-item');
+  if(duplicate){
+   collectItems();const idx=Number(duplicate.dataset.index),from=items[idx];if(!from)return;
+   const copy=structuredClone(from);copy.id=rand();copy.flowV13=undefined;copy.productionRunId=undefined;copy.status='Arte';copy.materialApplied=false;
+   collapsedItems.add(from.id);collapsedItems.delete(copy.id);items.splice(idx+1,0,copy);
+   drawItems();notify('Serviço duplicado. Ajuste as informações da cópia.');return;
+  }
+  const remove=e.target.closest('.v6-remove-item');
+  if(remove&&items.length>1){
+   collectItems();const idx=Number(remove.dataset.index);collapsedItems.delete(items[idx]?.id);items.splice(idx,1);drawItems();return;
+  }
+  const suggestion=e.target.closest('.v20-suggestion');
+  if(suggestion){
+   const wrap=suggestion.closest('.v20-service-combo');if(!wrap)return;
+   const input=wrap.querySelector('.v6-i-service');input.value=suggestion.dataset.service;
+   wrap.querySelector('.v20-service-suggest').hidden=true;
+   collectItems();updateTotals();
+  }
  });
- $('#v6ItemList').addEventListener('input',e=>{if(e.target.classList.contains('v6-i-service'))v20ServiceSuggestions(e.target);});
- $('#v6ItemList').addEventListener('focusin',e=>{if(e.target.classList.contains('v6-i-service'))v20ServiceSuggestions(e.target);});
- $('#v6ItemList').addEventListener('click',e=>{const b=e.target.closest('.v20-suggestion');if(!b)return;const wrap=b.closest('.v20-service-combo');if(wrap){wrap.querySelector('.v6-i-service').value=b.dataset.service;const row=wrap.closest('.v6-edit-item');if(row&&!row.dataset.v20FinishTouched)row.querySelector('.v20-needs-finish').checked=v20ServiceRequirements()[b.dataset.service]!==false;wrap.querySelector('.v20-service-suggest').hidden=true;collectItems();updateTotals();}});
+ $('#v6ItemList').addEventListener('focusin',e=>{if(e.target.classList.contains('v6-i-service'))v23ServiceSuggestions(e.target);});
+ $('#v6ItemList').addEventListener('keydown',e=>{
+  if(!e.target.classList.contains('v6-i-service'))return;
+  const list=e.target.closest('.v20-service-combo')?.querySelector('.v20-service-suggest');
+  if(e.key==='Escape'){if(list)list.hidden=true;e.stopPropagation();return;}
+  if(e.key==='Enter'){e.preventDefault();const first=list?.querySelector('.v20-suggestion');if(first&&!list.hidden)first.click();}
+ });
+ $('#v6ItemList').addEventListener('focusout',e=>{
+  if(!e.target.classList.contains('v6-i-service'))return;
+  const wrap=e.target.closest('.v20-service-combo');
+  setTimeout(()=>{if(wrap?.isConnected&&!wrap.contains(document.activeElement))wrap.querySelector('.v20-service-suggest').hidden=true;},170);
+ });
  $('#addPayment').onclick=()=>{collectItems();const amount=bounded(value('newPayAmount')),method=value('newPayMethod'),total=v21CalculatedEditorTotal();
   if(items.some(i=>i.unitPrice===null)){notify('Defina primeiro o valor de cada serviço.');return}
   if(amount===null||!Object.hasOwn(db.settings.fees,method)){notify('Informe pagamento e forma válidos.');return}
