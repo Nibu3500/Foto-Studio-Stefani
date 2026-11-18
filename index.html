@@ -1569,8 +1569,8 @@ function v20SearchOrder(o,rawQuery){
 
 // Filtro visual de OS: consulta serviços e materiais existentes, sem modificar estoque.
 const v24MaterialTypes=[
- ['lona','🖨️ Lona'],['adesivo','🏷️ Adesivo / Vinil'],['papel','📄 Papel'],
- ['dtfuv','✨ DTF UV'],['pvc','▣ PVC / ACM'],['outros','📦 Outros']
+ ['lona','Lona'],['adesivo','Adesivo / Vinil'],['papel','Papel'],
+ ['dtfuv','DTF UV'],['pvc','PVC / ACM'],['outros','Outros']
 ];
 function v24MaterialTypeFromText(raw){
  const value=normalizedSearch(raw||'');
@@ -1614,10 +1614,12 @@ function v24MaterialFilterChips(){
  const visible=filteredOrders({ignoreMaterialType:true});
  const counts=new Map(v24MaterialTypes.map(entry=>[entry[0],0]));
  for(const o of visible){for(const type of v24OrderMaterialTypes(o))counts.set(type,(counts.get(type)||0)+1);}
+ // Quando os demais filtros deixam a categoria sem OS, desfaz somente esse filtro.
+ if(orderFilters.materialType && !(counts.get(orderFilters.materialType)>0))orderFilters.materialType='';
  const active=orderFilters.materialType;
- const head='<div class="v24-material-filter-head"><strong>▧ Tipo de material</strong><small>Identificado automaticamente pelo serviço ou material da produção</small></div>';
+ const head='<div class="v24-material-filter-head"><strong>Tipo de material</strong><small>Identificado automaticamente pelo serviço ou material da produção</small></div>';
  const all='<button type="button" class="v24-material-chip '+(!active?'active':'')+'" data-action="os-material-type" data-material-type="" aria-pressed="'+(!active)+'">Todos <span>'+visible.length+'</span></button>';
- const buttons=v24MaterialTypes.map(function(entry){
+ const buttons=v24MaterialTypes.filter(entry=>(counts.get(entry[0])||0)>0).map(function(entry){
   const key=entry[0],label=entry[1],selected=active===key;
   return '<button type="button" class="v24-material-chip '+(selected?'active':'')+'" data-action="os-material-type" data-material-type="'+key+'" aria-pressed="'+selected+'">'+label+' <span>'+(counts.get(key)||0)+'</span></button>';
  }).join('');
