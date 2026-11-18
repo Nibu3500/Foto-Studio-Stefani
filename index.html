@@ -995,6 +995,9 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 .v21-focus-contact{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
 .v21-expense-link{color:var(--accent);font-size:11px}
 </style>
+<style>
+.v26-batch-intro{font-size:13px;margin-bottom:15px;color:var(--ink)}.v26-batch-good,.v26-batch-warning,.v26-batch-info{border-radius:13px;padding:16px;margin:12px 0}.v26-batch-good{background:var(--good-bg);border:1px solid var(--line)}.v26-batch-warning{background:var(--warn-bg);border:1px solid var(--line)}.v26-batch-info{background:var(--accent-soft);border:1px solid var(--line)}.v26-batch-good strong,.v26-batch-warning strong,.v26-batch-info strong{display:block;font-size:16px}.v26-batch-good span{display:block;margin-top:7px;font-size:13px}.v26-batch-warning p,.v26-batch-info p{font-size:12px;line-height:1.6;margin:8px 0}.v26-batch-row{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;margin-top:7px;border-radius:8px;background:var(--panel);font-size:12px}.v26-batch-row strong{font-size:12px}.v26-batch-progress{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;align-items:center;background:var(--accent-soft);border:1px solid var(--line);border-radius:12px;padding:13px 17px;margin:12px 0}.v26-batch-progress strong{font-size:13px}.v26-batch-progress small{display:block;font-size:11px;line-height:1.55;color:var(--muted);margin-top:5px}
+</style>
 </head>
 <body>
 
@@ -1793,10 +1796,95 @@ function advanceOrder(id){
 }
 
 
+
+// V26: confirmação de lotes por material; nenhuma baixa é feita na seleção.
+let v26PrintBatchQueue=[],v26PrintBatchTotal=0,v26PrintBatchPrepared=0,v26PrintBatchSkipped=0;
+function v26PrintMaterial(item) {
+  const cfg=v25ServiceMaterialConfig(item.service||'');
+  const id=item.flowV13?.print?.materialId||item.materialId||cfg.materialId||'';
+  const mat=db.materials.find(m=>m.id===id);
+  if(mat&&(mat.archived||mat.hidden))return null;
+  const name=mat?.name||String(item.productionMaterialType||'').trim();
+  if(!name)return null;
+  return {key:mat?'material:'+mat.id:'name:'+normalizedSearch(name),label:name};
+}
+function v26OpenBatchPreparation(orders) {
+  if(v26PrintBatchQueue.length){notify('Já existe um lote em preparação. Continue ou encerre esse lote primeiro.');v26ResumePrintBatch();return;}
+  const candidates=[],excluded=[];
+  for(const o of orders){
+    const items=orderItems(o);
+    for(const i of items){
+      if(o.status!=='A produzir'||i.status!=='A produzir'||!v13IsMimaki(i.service)||i.flowV13?.printConfirmed){excluded.push({reason:'Outra etapa ou serviço sem preparação Mimaki'});continue;}
+      const old=runFor(o.id,i.id);
+      if(old?.completedStepIds?.length){excluded.push({reason:'Produção anterior precisa de conferência'});continue;}
+      const mat=v26PrintMaterial(i);
+      if(!mat){excluded.push({reason:'Material de impressão ainda não definido'});continue;}
+      candidates.push({oid:o.id,iid:i.id,number:o.number,service:i.service,...mat});
+    }
+  }
+  if(!candidates.length){
+    notify('Nenhum serviço elegível. Confira a etapa A produzir e defina o material principal no cadastro do serviço.');return;
+  }
+  const map=new Map();
+  for(const c of candidates){if(!map.has(c.key))map.set(c.key,{key:c.key,label:c.label,items:[]});map.get(c.key).items.push(c);}
+  const groups=[...map.values()].sort((a,b)=>b.items.length-a.items.length||a.label.localeCompare(b.label,'pt-BR'));
+  const main=groups[0],left=groups.slice(1),outside=left.reduce((n,g)=>n+g.items.length,0)+excluded.length;
+  const otherRows=left.map(g=>'<div class="v26-batch-row"><strong>'+safe(g.label)+'</strong><span>'+g.items.length+' serviço(s)</span></div>').join('');
+  const badRows=excluded.length?'<div class="v26-batch-row"><strong>Outras etapas / sem material definido</strong><span>'+excluded.length+' serviço(s)</span></div>':'';
+  const body='<div class="v26-batch-intro">Você selecionou <b>'+orders.length+' OS</b>. Confira o resumo antes de avançar.</div>'+
+    '<div class="v26-batch-good"><strong>✓ '+main.items.length+' serviço(s) serão preparados neste lote</strong><span>Tipo de impressão: <b>'+safe(main.label)+'</b></span></div>'+
+    (outside?'<div class="v26-batch-warning"><strong>ⓘ '+outside+' serviço(s) ficarão de fora deste lote</strong><p>Motivo: material de impressão diferente ou preparação individual necessária.</p>'+otherRows+badRows+'</div>':'')+
+    '<div class="v26-batch-info"><strong>Como funciona?</strong><p>Somente os serviços do material indicado entrarão na sequência de preparação. Você confere e inicia cada serviço na Mimaki, um de cada vez. Iniciar não desconta estoque; a baixa continua somente na confirmação da impressão. Os demais serviços permanecem sem alteração.</p></div>';
+  showModal('Preparar produção em lote',body,()=>{
+    const valid=main.items.filter(c=>{const o=db.orders.find(x=>x.id===c.oid),i=o?.items?.find(x=>x.id===c.iid);return o?.status==='A produzir'&&i?.status==='A produzir'&&v26PrintMaterial(i)?.key===main.key;});
+    if(valid.length!==main.items.length){notify('Alguns serviços mudaram desde a seleção. Atualize a lista e tente novamente.');return false;}
+    v26PrintBatchQueue=valid.map(({oid,iid})=>({oid,iid}));
+    v26PrintBatchTotal=valid.length;v26PrintBatchPrepared=0;v26PrintBatchSkipped=0;
+    setTimeout(v26ResumePrintBatch,0);
+    return true;
+  },'Preparar '+main.items.length+' serviço(s)');
+}
+function v26ResumePrintBatch(){
+  while(v26PrintBatchQueue.length){
+    const q=v26PrintBatchQueue[0],o=db.orders.find(x=>x.id===q.oid),i=o?.items?.find(x=>x.id===q.iid);
+    if(o?.status==='A produzir'&&i?.status==='A produzir'&&!i.flowV13?.printConfirmed){v13Open(q.oid,q.iid,'print');return true;}
+    v26PrintBatchQueue.shift();v26PrintBatchSkipped++;
+  }
+  if(v26PrintBatchTotal){
+    const done=v26PrintBatchPrepared,skipped=v26PrintBatchSkipped;
+    v26PrintBatchTotal=0;go('os');notify('Lote encerrado: '+done+' serviço(s) preparado(s)'+(skipped?'; '+skipped+' não iniciado(s).':'.'));
+  }
+  return false;
+}
+function v26NextPrintBatch(oid,iid,started=true){
+  const at=v26PrintBatchQueue.findIndex(q=>q.oid===oid&&q.iid===iid);
+  if(at<0)return false;
+  v26PrintBatchQueue.splice(at,1);
+  if(started)v26PrintBatchPrepared++;else v26PrintBatchSkipped++;
+  v26ResumePrintBatch();
+  return true;
+}
+function v26SkipPrintBatch(){
+  const c=v13Current();
+  if(c&&v26NextPrintBatch(c.o.id,c.i.id,false))return;
+  notify('Nenhuma preparação em lote em andamento.');
+}
+function v26CancelPrintBatch(){
+  const remaining=v26PrintBatchQueue.length;
+  v26PrintBatchQueue=[];v26PrintBatchTotal=0;v26PrintBatchPrepared=0;v26PrintBatchSkipped=0;
+  go('os');notify('Sequência de lote encerrada. '+remaining+' serviço(s) não iniciado(s), sem alteração de etapa.');
+}
+function v26PrintBatchBanner(o,i){
+  if(!v26PrintBatchQueue.some(q=>q.oid===o.id&&q.iid===i.id))return '';
+  const position=v26PrintBatchPrepared+v26PrintBatchSkipped+1;
+  return '<div class="v26-batch-progress"><div><strong>🖨️ Preparação em lote · serviço '+position+' de '+v26PrintBatchTotal+'</strong><small>Confirme o material desta OS; os próximos serviços serão abertos em sequência. O estoque só é descontado na confirmação da impressão.</small></div><div class="two-buttons"><button type="button" class="button small soft" data-action="v26-batch-skip">Pular este serviço</button><button type="button" class="button small" data-action="v26-batch-stop">Encerrar lote</button></div></div>';
+}
+
 function runBulk(kind){
  const visible=new Set(filteredOrders().map(o=>o.id));const items=db.orders.filter(o=>visible.has(o.id)&&selectedOrders.has(o.id));
  if(!items.length){notify('Selecione pelo menos uma OS desta lista.');return}
  if(!['next','cancel'].includes(kind))return;
+ if(kind==='next'&&items.some(o=>o.status==='A produzir')){v26OpenBatchPreparation(items);return;}
  const message=kind==='cancel'?`Cancelar ${items.length} OS? Esta ação não exclui registros nem altera pagamentos já recebidos.`:`Avançar a próxima etapa de ${items.length} OS? OS com cobrança ou conferência pendente serão ignoradas.`;
  if(!window.confirm(message))return;
  let changed=0,skipped=0;
@@ -2080,7 +2168,7 @@ function ordersPage(){
    <div class="os-filter-count" id="ordersFilterCount" aria-live="polite"></div>
   </div>
  </div>
- <div class="bulk-bar card"><strong id="bulkCount">0 selecionadas</strong><input id="searchOrders" class="search os-search-inline" type="search" placeholder="🔎 Buscar nº, cliente, telefone ou serviço..." aria-label="Pesquisar ordens de serviço" value="${safe(orderFilters.search)}" autocomplete="off"><button type="button" class="button small primary" data-action="bulk-next">→ Próxima etapa</button><button type="button" class="button small danger" data-action="bulk-cancel">Cancelar selecionadas</button><small>☑ Marque as OS que está fazendo: elas ficam destacadas no topo desta lista até mudar de etapa. As ações em lote continuam disponíveis.</small></div>
+ <div class="bulk-bar card"><strong id="bulkCount">0 selecionadas</strong><input id="searchOrders" class="search os-search-inline" type="search" placeholder="🔎 Buscar nº, cliente, telefone ou serviço..." aria-label="Pesquisar ordens de serviço" value="${safe(orderFilters.search)}" autocomplete="off"><button type="button" class="button small primary" data-action="bulk-next">→ Próxima etapa</button>${v26PrintBatchQueue.length?`<button type="button" class="button small soft" data-action="v26-batch-resume">↪ Retomar lote (${v26PrintBatchQueue.length})</button>`:""}<button type="button" class="button small danger" data-action="bulk-cancel">Cancelar selecionadas</button><small>☑ Marque as OS que está fazendo: elas ficam destacadas no topo desta lista até mudar de etapa. As ações em lote continuam disponíveis.</small></div>
  <div class="card os-stage-filters" aria-label="Filtros das etapas de produção">
   <div id="stageFilterRoot">${stageChips()}</div>
   <div id="materialFilterRoot">${v24MaterialFilterChips()}</div>
@@ -4620,7 +4708,7 @@ function v13ProductionPage(){const c=v13Current();if(!c)return heading('Produç�
  const preferred=db.materials.find(m=>m.id===preferredId&&!m.archived&&['m','m²','rolo'].includes(m.unit)&&isProductionMaterial(m));
  const material=p.materialId||preferred?.id||(!i.mainMaterialType?db.materials.find(m=>isProductionMaterial(m)&&/lona|vinil|adesiv/i.test(m.name))?.id:'')||'';
  const ink=p.inkCMYK||{};
- return `${heading('Mimaki · OS #'+o.number,`Serviço: ${safe(i.service)} · conferência da impressão e dos materiais`)}${!v18StockEnabled()?'<div class="notice" style="display:block;margin:10px 0">⏸ Estoque pausado: a impressão será confirmada sem desconto de bobinas ou materiais.</div>':''}
+ return `${heading('Mimaki · OS #'+o.number,`Serviço: ${safe(i.service)} · conferência da impressão e dos materiais`)}${v26PrintBatchBanner(o,i)}${!v18StockEnabled()?'<div class="notice" style="display:block;margin:10px 0">⏸ Estoque pausado: a impressão será confirmada sem desconto de bobinas ou materiais.</div>':''}
  <div class="v13-banner"><strong>🖨️ ${starting?'Preparar a impressão':'Conferir a impressão'}</strong><p>${starting?'Confira e salve a preparação. A entrada em produção não desconta material.':'A baixa do material principal só é feita quando você confirma a impressão.'}</p></div>
  <div class="v12-prod-breadcrumb"><span>Arte ✓</span><span class="active">Mimaki / impressão</span><span>Acabamento</span></div>
  <div class="v13-grid"><div class="v13-stack">
@@ -4696,7 +4784,7 @@ function v13SavePrint(mode){const p=v13PrintValues();if(!p)return;if(mode==='con
  p.f.print=stored;p.i.widthCm=p.w;p.i.heightCm=p.h;p.i.quantity=p.q;p.i.materialOrigin=p.origin;p.i.productionMaterialType=p.mat?.name||'';
  if(mode==='start'){p.o.status='Em produção';p.o.statusChangedAt=today();p.i.status='Em produção';}
  if(mode==='confirm'||mode==='start')followGuidedAdvance(p.o.id,previousStatus);
- persist();if(mode==='confirm'){v20ForgetScreenDraft(p.o.id,p.i.id,'print');if(v20NeedsFinish(p.i))v13Open(p.o.id,p.i.id,'finish');else go('os');notify(v20NeedsFinish(p.i)?'Impressão confirmada. Abra o acabamento para finalizar.':'Impressão confirmada. Acabamento dispensado; OS encaminhada conforme o pagamento.');}else if(mode==='start'){go('os');notify('Produção iniciada. Nenhuma baixa efetuada ainda.');}else{render();notify('Preparação salva. Nenhuma baixa realizada.');}
+ persist();if(mode==='confirm'){v20ForgetScreenDraft(p.o.id,p.i.id,'print');if(v20NeedsFinish(p.i))v13Open(p.o.id,p.i.id,'finish');else go('os');notify(v20NeedsFinish(p.i)?'Impressão confirmada. Abra o acabamento para finalizar.':'Impressão confirmada. Acabamento dispensado; OS encaminhada conforme o pagamento.');}else if(mode==='start'){if(!v26NextPrintBatch(p.o.id,p.i.id,true)){go('os');notify('Produção iniciada. Nenhuma baixa efetuada ainda.');}}else{render();notify('Preparação salva. Nenhuma baixa realizada.');}
 }
 function v13FinishRowsUI(){const box=$('#v13FinishRows');if(!box)return;const c=v13Current(),locked=!!c?.f.finishConfirmed;
  box.innerHTML=v13FinishDraft.map((r,k)=>{const m=db.materials.find(x=>x.id===r.materialId),unit=m?prodUnit(m):'não vinculado';return `<div class="v13-material v16-finish-row"><div><label>Material<select class="select" data-v13-mat="${k}" ${locked?'disabled':''}>${v13FinishMaterialOptions(r.materialId)}</select></label><div class="v16-caption">${r.sourceName&&!m?'⚠ Vincule um material do estoque.':''} ${m?'Unidade de estoque: '+safe(unit):''}</div></div><div><label>Consumo real (${safe(unit)})<input class="input" data-v13-qty="${k}" min="0" step="0.0001" type="number" value="${num(r.qty)}" ${locked?'disabled':''}></label><div class="v16-caption">Estimado: ${dec(r.estimate??r.qty,3)} ${safe(unit)}</div></div><label class="toggle v16-checkbox"><input type="checkbox" data-v13-scrap="${k}" ${r.noDeduct?'checked':''} ${locked?'disabled':''}> Sobra (sem baixa)</label><button class="button danger small" type="button" data-v13-remove="${k}" ${locked?'disabled':''} title="Remover material">×</button></div>`}).join('')||'<div class="v16-blank">Nenhum material de acabamento. Quando não houver acabamento, use o botão Pular acabamento, sem descontar insumos.</div>';
@@ -4796,7 +4884,7 @@ function handleAction(action,id,element){switch(action){
  case 'stock-package':editPackage(id);break;
  case 'stock-archived':stockShowArchived=!stockShowArchived;render();break;
  case 'stock-scrap':recordScrap(id);break;case 'stock-scrap-used':{const x=db.scraps.find(v=>v.id===id);if(x&&window.confirm('Marcar a sobra como utilizada?')){x.available=false;persist();render()}break;}
- case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'bulk-cancel':runBulk('cancel');break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'os-material-type':{const chosen=element.dataset.materialType||'';orderFilters.materialType=orderFilters.materialType===chosen?'':chosen;refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.materialType='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
+ case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'v26-batch-resume':v26ResumePrintBatch();break;case 'v26-batch-skip':v26SkipPrintBatch();break;case 'v26-batch-stop':v26CancelPrintBatch();break;case 'bulk-cancel':runBulk('cancel');break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'os-material-type':{const chosen=element.dataset.materialType||'';orderFilters.materialType=orderFilters.materialType===chosen?'':chosen;refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.materialType='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
  case 'v20-stock-filter':{const mode=element.dataset.mode||'';stockFilters.conference=stockFilters.conference===mode?'':mode;render();break;}
  case 'v20-adjust-stock':v20AdjustStock(id);break;
  case 'v20-convert-unit':v20ConvertMaterialUnit(id);break;
