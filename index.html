@@ -838,7 +838,6 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 .v21-install-panel h4{margin:0 0 10px;font-size:14px}
 .v21-install-panel .field{min-width:0}
 .v21-install-panel .v21-hide{display:none!important}
-.v21-phone-help{font-size:11px;color:var(--muted);margin:4px 0 0}
 .v21-focus-contact{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
 .v21-expense-link{color:var(--accent);font-size:11px}
 </style>
@@ -2150,7 +2149,7 @@ function newOS(id,addItem=false){
  <div class="field v6-i-subtotal"><label>Total deste serviço</label><strong>${brl(i.total||0)}</strong></div>
  </div></article>`;
  const body=`<div class="v6-editor-intro">🎨 <strong>Um pedido, vários serviços.</strong> Informe quantidade, preço unitário ou total: os três campos ficam editáveis e se recalculam automaticamente. Os pagamentos continuam na OS inteira.</div>
- <div class="formgrid">${field('Cliente *',inp('oClient',o.client,'text','required maxlength="90"'))}${field('Telefone / WhatsApp (opcional)',`<input class="input" id="oPhone" type="tel" maxlength="24" value="${safe(v21PhoneInfo(o.phone).valid?v21PhoneInfo(o.phone).formatted:(o.phone||''))}" placeholder="(31) 99999-9999"><small class="v21-phone-help" id="oPhoneHelp">DDD 31 automático quando faltar.</small>`)}${field('Data (preenchida automaticamente)',inp('oDate',o.date,'date','required'))}${field('Número da OS *',inp('oNumber',o.number,'number','min="1" step="1" required'))}${field('Status geral da OS',sel('oStatus',[...new Set([...db.settings.statuses,o.status])],o.status))}</div>
+ <div class="formgrid">${field('Cliente *',inp('oClient',o.client,'text','required maxlength="90"'))}${field('Telefone / WhatsApp (opcional)',`<input class="input" id="oPhone" type="tel" maxlength="24" value="${safe(v21PhoneInfo(o.phone).valid?v21PhoneInfo(o.phone).formatted:(o.phone||''))}" placeholder="(31) 99999-9999">`)}${field('Data (preenchida automaticamente)',inp('oDate',o.date,'date','required'))}${field('Número da OS *',inp('oNumber',o.number,'number','min="1" step="1" required'))}${field('Status geral da OS',sel('oStatus',[...new Set([...db.settings.statuses,o.status])],o.status))}</div>
  <div class="v6-section-heading"><h3>Serviços do pedido</h3><button type="button" class="button primary" id="v6AddItem">＋ Adicionar serviço</button></div>
  <div id="v6ItemList"></div>
  ${v21InstallationMarkup(o.installation)}
@@ -2234,14 +2233,9 @@ function newOS(id,addItem=false){
   if(!old||old.status!==saved.status)v21QueueInstallerReminder(saved,old?.status||'Arte');
   notify(`OS #${number} salva com ${items.length} serviço(s).`);return true;
  },'✓ Salvar OS',true);
- function v21RefreshPhoneHelp(){const input=$('#oPhone'),help=$('#oPhoneHelp');if(!input||!help)return;
-  const info=v21PhoneInfo(input.value);
-  if(!input.value.trim()){help.textContent='DDD 31 automático quando faltar. Campo opcional.';return;}
-  help.textContent=info.valid?`Número reconhecido: ${info.formatted}`:'Número incompleto ou inválido.';
- }
- $('#oPhone').addEventListener('input',v21RefreshPhoneHelp);
- $('#oPhone').addEventListener('blur',()=>{const info=v21PhoneInfo($('#oPhone').value);if(info.valid)$('#oPhone').value=info.formatted;v21RefreshPhoneHelp();});
- $('#oClient').addEventListener('blur',()=>{if($('#oPhone').value.trim())return;const name=normalizedSearch($('#oClient').value);const prior=db.orders.slice().reverse().find(x=>normalizedSearch(x.client)===name&&v21PhoneInfo(x.phone).valid);if(prior){$('#oPhone').value=v21PhoneInfo(prior.phone).formatted;v21RefreshPhoneHelp();}});
+ // Mantém a formatação e a busca do telefone de clientes existentes, sem texto auxiliar.
+ $('#oPhone').addEventListener('blur',()=>{const info=v21PhoneInfo($('#oPhone').value);if(info.valid)$('#oPhone').value=info.formatted;});
+ $('#oClient').addEventListener('blur',()=>{if($('#oPhone').value.trim())return;const name=normalizedSearch($('#oClient').value);const prior=db.orders.slice().reverse().find(x=>normalizedSearch(x.client)===name&&v21PhoneInfo(x.phone).valid);if(prior)$('#oPhone').value=v21PhoneInfo(prior.phone).formatted;});
  function v22SetInstallation(type){
   const enabled=type==='propria'||type==='terceirizada',third=type==='terceirizada';
   $('#oInstallEnabled').checked=enabled;
@@ -2257,7 +2251,6 @@ function newOS(id,addItem=false){
  document.querySelectorAll('[name="v22InstallChoice"]').forEach(r=>r.addEventListener('change',e=>v22SetInstallation(e.target.value)));
  $('#v22ClearInstall').addEventListener('click',()=>{document.querySelectorAll('[name="v22InstallChoice"]').forEach(r=>r.checked=false);v22SetInstallation('');});
  $('#oInstallCharge').addEventListener('input',()=>{collectItems();updateTotals();});
- v21RefreshPhoneHelp();
  $('#v6ItemList').addEventListener('input',e=>{v19PriceInput(e);if(e.target.classList.contains('v6-i-service')){const row=e.target.closest('.v6-edit-item'),check=row?.querySelector('.v20-needs-finish');if(check&&!row.dataset.v20FinishTouched)check.checked=v20ServiceRequirements()[e.target.value]!==false;}collectItems();updateTotals()});
  $('#v6ItemList').addEventListener('change',e=>{v19PriceInput(e);if(e.target.classList.contains('v20-needs-finish'))e.target.closest('.v6-edit-item').dataset.v20FinishTouched='1';collectItems();updateTotals()});
  $('#v6AddItem').onclick=()=>{collectItems();items.push({id:rand(),service:'',description:'',quantity:1,unitPrice:null,total:0,priceBasis:'total',status:'A produzir',widthCm:null,heightCm:null,materialOrigin:''});drawItems()};
