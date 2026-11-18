@@ -4115,6 +4115,7 @@ document.getElementById('pilotWarnClose').onclick=()=>warning.classList.remove('
 const cloudToggle=document.getElementById('pilotCloudToggle');
 const cloudPanel=document.getElementById('pilotCloudPanel');
 const cloudSync=document.getElementById('pilotCloudSync');
+let cloudSyncBusy=false;
 const cloudMetrics={reads:0,writes:0,bytes:0,docs:0,lastConfirmed:null,status:'Conectando…'};
 const cloudNum=n=>Math.max(0,Number(n)||0).toLocaleString('pt-BR');
 const cloudSize=n=>n<1024?cloudNum(n)+' B':n<1048576?(n/1024).toLocaleString('pt-BR',{maximumFractionDigits:1})+' KB':(n/1048576).toLocaleString('pt-BR',{maximumFractionDigits:2})+' MB';
@@ -4143,7 +4144,7 @@ const refreshCloudPanel=()=>{
  document.getElementById('pilotCloudActivityFill').style.width=pct+'%';
  document.getElementById('pilotCloudActivityFill').style.background=tone==='error'?'#ff7785':tone==='warn'?'#ffc16a':'#62cba9';
  document.getElementById('pilotCloudActivityLabel').textContent=cloudActivity()>=1?'Muito elevada':cloudActivity()>=.25?'Elevada':'Normal';
- cloudSync.disabled=!loaded||!user||connectionError||pending>0||resetting;
+ cloudSync.disabled=cloudSyncBusy||!loaded||!user||connectionError||pending>0||resetting;
 };
 const setStatus=v=>{cloudMetrics.status=v;state.textContent=v;refreshCloudPanel();};
 const countRemoteRead=s=>{cloudMetrics.reads+=s.docChanges().length;};
@@ -4171,8 +4172,9 @@ document.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&!cloudPanel.hidden){cloudPanel.hidden=true;cloudToggle.setAttribute('aria-expanded','false');}
 });
 cloudSync.addEventListener('click',async()=>{
- if(!loaded||!user||connectionError||pending>0||resetting){warn('Não é possível conferir a nuvem agora. Aguarde o salvamento ou a conexão voltar.');return;}
+ if(cloudSyncBusy||!loaded||!user||connectionError||pending>0||resetting){warn('Não é possível conferir a nuvem agora. Aguarde o salvamento ou a conexão voltar.');return;}
  if(bridge.isEditing()){warn('Finalize e feche a edição atual antes de sincronizar manualmente, para não perder campos que ainda não foram salvos.');return;}
+ cloudSyncBusy=true;
  cloudSync.disabled=true;
  setStatus('☁ Conferindo dados na nuvem…');
  try{
@@ -4185,7 +4187,7 @@ cloudSync.addEventListener('click',async()=>{
   connectionError=true;
   setStatus('⚠ Erro ao conferir a nuvem');
   warn('Falha ao consultar o servidor: '+summarizeError(e)+'. Não continue editando até a conexão ser restabelecida.');
- }finally{refreshCloudPanel();}
+ }finally{cloudSyncBusy=false;refreshCloudPanel();}
 });
 const warn=t=>{wtext.textContent=t;warning.classList.add('visible');};
 const encodeItemId=(type,id)=>type+'__'+String(id);
