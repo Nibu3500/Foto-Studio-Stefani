@@ -2665,6 +2665,7 @@ function newOS(id,addItem=false){
   phoneHistory.push({name,phone});
  }
  let autoPhoneName=null; // Não substitui um nome digitado manualmente.
+ let phoneChoices=[]; // Mantém as opções corretas durante o clique, inclusive no celular.
  const hideClientSuggestions=()=>{clientList.hidden=true;clientList.innerHTML='';clientInput.setAttribute('aria-expanded','false');};
  const hidePhoneClients=()=>{phoneClientList.hidden=true;phoneClientList.innerHTML='';phoneInput.setAttribute('aria-expanded','false');};
  const suggestClients=()=>{
@@ -2722,6 +2723,7 @@ function newOS(id,addItem=false){
  };
  const findClientByPhone=()=>{
   const matches=matchingPhoneClients();
+  phoneChoices=matches;
   const existing=clientInput.value.trim();
   const canFill=!existing||(autoPhoneName&&normalizedSearch(existing)===normalizedSearch(autoPhoneName));
   if(!matches.length){
@@ -2746,7 +2748,7 @@ function newOS(id,addItem=false){
  phoneClientList.addEventListener('mousedown',e=>{if(e.target.closest('[data-phone-client-index]'))e.preventDefault();});
  phoneClientList.addEventListener('click',e=>{
   const option=e.target.closest('[data-phone-client-index]');if(!option)return;
-  const index=Number(option.dataset.phoneClientIndex),entry=matchingPhoneClients()[index];
+  const index=Number(option.dataset.phoneClientIndex),entry=phoneChoices[index];
   if(entry)choosePhoneClient(entry);
  });
  phoneInput.addEventListener('keydown',e=>{
