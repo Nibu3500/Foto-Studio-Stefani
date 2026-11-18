@@ -780,11 +780,19 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 .pilot-monitor-header small{display:block;color:#aac0dd;margin-top:3px;font-size:11px}
 .pilot-monitor-badge{font-size:10px;border-radius:999px;padding:5px 8px;background:#31466c;color:#d3e4fc;white-space:nowrap}
 .pilot-monitor-status{border-radius:9px;margin:13px 0;padding:9px 10px;background:#233b54;color:#e1eefa;font-size:11px}
-.pilot-monitor-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.pilot-monitor-grid>div{background:#213356;border:1px solid #394e76;padding:11px;border-radius:12px;min-width:0}
-.pilot-monitor-grid small{display:block;font-size:10px;color:#b3c7e4}
-.pilot-monitor-grid b{display:block;font-size:19px;color:#fff;margin:3px 0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.pilot-monitor-grid span{display:block;font-size:9px;color:#9fb5d6}
+/* Os números permanecem visíveis; cada indicador tem sua própria barra horizontal. */
+.pilot-monitor-bars{display:flex;flex-direction:column;gap:10px}
+.pilot-monitor-row{border:1px solid #394e76;background:#213356;border-radius:12px;padding:11px 13px}
+.pilot-monitor-row-header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}
+.pilot-monitor-row-header span{font-size:11px;font-weight:700;color:#cbdcf6}
+.pilot-monitor-row-header strong{font-size:19px;font-weight:850;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pilot-monitor-row-track{height:12px;background:#334b70;border-radius:99px;overflow:hidden}
+.pilot-monitor-row-track i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#58a5f8,#83d5ff);transition:width .25s ease}
+.pilot-monitor-row[data-meter="writes"] .pilot-monitor-row-track i{background:linear-gradient(90deg,#986efb,#c3aaff)}
+.pilot-monitor-row[data-meter="size"] .pilot-monitor-row-track i{background:linear-gradient(90deg,#25b69a,#6de8c7)}
+.pilot-monitor-row[data-meter="docs"] .pilot-monitor-row-track i{background:linear-gradient(90deg,#e5a744,#ffd97c)}
+.pilot-monitor-row small{display:block;font-size:10px;color:#a9bfdd;margin-top:7px}
+.pilot-monitor-scale{color:#9bb4d8;font-size:10px;line-height:1.55;margin:11px 0 0}
 .pilot-monitor-meter-label{display:flex;justify-content:space-between;gap:8px;margin:14px 0 6px;color:#c4d6ec;font-size:10px}
 .pilot-monitor-meter{height:9px;border-radius:99px;background:#334967;overflow:hidden}
 .pilot-monitor-meter i{display:block;width:0;height:100%;background:#62cba9;border-radius:99px;transition:width .2s,background .2s}
@@ -870,12 +878,29 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 <div id="pilotCloudPanel" class="pilot-cloud-panel" hidden>
  <div class="pilot-monitor-header"><div><strong>☁ Monitor do Firebase</strong><small>Foto Studio Stefani · nuvem oficial</small></div><span id="pilotMonitorBadge" class="pilot-monitor-badge">Aguardando</span></div>
  <div id="pilotMonitorStatus" class="pilot-monitor-status" role="status">Aguardando conexão segura…</div>
- <div class="pilot-monitor-grid">
-  <div><small>Leituras observadas</small><b id="pilotCloudReads">0</b><span>neste aparelho, nesta sessão</span></div>
-  <div><small>Gravações confirmadas</small><b id="pilotCloudWrites">0</b><span>neste aparelho, nesta sessão</span></div>
-  <div><small>Dados carregados</small><b id="pilotCloudSize">—</b><span>tamanho aproximado</span></div>
-  <div><small>Registros na coleção</small><b id="pilotCloudDocs">—</b><span>documentos observados</span></div>
+ <div class="pilot-monitor-bars" aria-label="Indicadores de uso observados no navegador">
+  <div class="pilot-monitor-row" data-meter="reads">
+   <div class="pilot-monitor-row-header"><span>📖 Leituras observadas</span><strong id="pilotCloudReads">0</strong></div>
+   <div class="pilot-monitor-row-track" id="pilotCloudReadsBar" role="progressbar" aria-label="Leituras nesta sessão, em relação a uma referência visual local" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="pilotCloudReadsFill"></i></div>
+   <small>Contagem aproximada neste aparelho, nesta sessão</small>
+  </div>
+  <div class="pilot-monitor-row" data-meter="writes">
+   <div class="pilot-monitor-row-header"><span>✏️ Gravações confirmadas</span><strong id="pilotCloudWrites">0</strong></div>
+   <div class="pilot-monitor-row-track" id="pilotCloudWritesBar" role="progressbar" aria-label="Gravações confirmadas nesta sessão, em relação a uma referência visual local" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="pilotCloudWritesFill"></i></div>
+   <small>Contagem aproximada neste aparelho, nesta sessão</small>
+  </div>
+  <div class="pilot-monitor-row" data-meter="size">
+   <div class="pilot-monitor-row-header"><span>💾 Armazenamento estimado</span><strong id="pilotCloudSize">—</strong></div>
+   <div class="pilot-monitor-row-track" id="pilotCloudSizeBar" role="progressbar" aria-label="Dados carregados, em relação a uma referência visual local" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="pilotCloudSizeFill"></i></div>
+   <small>Tamanho aproximado dos dados, sem índices do Firebase</small>
+  </div>
+  <div class="pilot-monitor-row" data-meter="docs">
+   <div class="pilot-monitor-row-header"><span>🗂 Registros na coleção</span><strong id="pilotCloudDocs">—</strong></div>
+   <div class="pilot-monitor-row-track" id="pilotCloudDocsBar" role="progressbar" aria-label="Documentos observados, em relação a uma referência visual local" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="pilotCloudDocsFill"></i></div>
+   <small>Quantidade de documentos observados na coleção</small>
+  </div>
  </div>
+ <p class="pilot-monitor-scale">As barras representam escalas visuais locais, não limites nem porcentagens da sua cota Firebase. Os números ao lado são os valores observados.</p>
  <div class="pilot-monitor-meter-label"><span>Atividade observada nesta sessão</span><span id="pilotCloudActivityLabel">Normal</span></div>
  <div class="pilot-monitor-meter" role="progressbar" aria-label="Intensidade aproximada da atividade local" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pilotCloudActivityBar"><i id="pilotCloudActivityFill"></i></div>
  <div class="pilot-monitor-last">Última confirmação: <strong id="pilotCloudLast">Ainda não confirmada</strong></div>
@@ -4138,6 +4163,17 @@ const refreshCloudPanel=()=>{
  document.getElementById('pilotCloudWrites').textContent=cloudNum(cloudMetrics.writes);
  document.getElementById('pilotCloudSize').textContent=cloudMetrics.docs?cloudSize(cloudMetrics.bytes):'—';
  document.getElementById('pilotCloudDocs').textContent=loaded?cloudNum(cloudMetrics.docs):'—';
+ // As barras usam referências visuais próprias: não indicam o consumo da cota oficial.
+ for(const [id,value,reference] of [
+  ['Reads',cloudMetrics.reads,12000],
+  ['Writes',cloudMetrics.writes,5000],
+  ['Size',cloudMetrics.bytes,32*1048576],
+  ['Docs',loaded?cloudMetrics.docs:0,2000]
+ ]){
+  const pct=Math.min(100,Math.max(0,value/reference*100));
+  document.getElementById('pilotCloud'+id+'Fill').style.width=pct+'%';
+  document.getElementById('pilotCloud'+id+'Bar').setAttribute('aria-valuenow',String(Math.round(pct)));
+ }
  document.getElementById('pilotCloudLast').textContent=cloudMetrics.lastConfirmed?cloudMetrics.lastConfirmed.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Ainda não confirmada';
  const pct=Math.min(100,Math.round(cloudActivity()*100));
  document.getElementById('pilotCloudActivityBar').setAttribute('aria-valuenow',String(pct));
