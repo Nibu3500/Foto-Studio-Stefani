@@ -830,6 +830,45 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
  .v21-day-main .v21-money-cols small{font-size:10px}
 }
 
+
+/* Prévia isolada do novo cadastro: nenhuma alteração nas OS ou no Firebase. */
+#modalRoot .os-preview-modal{width:min(1210px,calc(100vw - 20px));height:min(94dvh,1080px);max-height:94dvh}
+#modalRoot .os-preview-modal .modal-content{padding:16px 18px;overflow-y:auto;flex:1;min-height:0}
+#modalRoot .os-preview-modal .modal-header{padding:13px 18px;flex-wrap:wrap;gap:8px}
+#modalRoot .os-preview-modal .modal-footer{padding:12px 18px}
+.os-preview-id{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.os-preview-top-pill{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--ink)}
+.os-preview-top-pill b{color:var(--accent)}
+.os-preview-testflag{display:inline-flex;background:var(--warn-bg);color:var(--warn);padding:7px 10px;border-radius:9px;font-weight:800;font-size:11px}
+.os-preview-root{display:grid;gap:13px}
+.os-preview-safe{border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));background:var(--warn-bg);border-radius:10px;padding:10px 13px;color:var(--warn);font-size:12px;line-height:1.45}
+.os-preview-card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:15px}
+.os-preview-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.os-preview-card-head strong{font-size:15px}
+.os-preview-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.os-preview-fields label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:750;color:var(--muted);min-width:0}
+.os-preview-fields .wide{grid-column:span 2}
+.os-preview-fields .full{grid-column:1/-1}
+.os-preview-fields .input,.os-preview-fields .select{width:100%;min-width:0;min-height:39px}
+.os-preview-item{border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line));border-radius:11px;overflow:hidden;margin-top:9px}
+.os-preview-item-head{display:flex;align-items:center;justify-content:space-between;gap:9px;background:var(--panel2);padding:10px;min-width:0}
+.os-preview-item-toggle{display:flex;align-items:center;gap:9px;flex:1;min-width:0;border:0;background:transparent;color:var(--ink);text-align:left;font-weight:800;font-size:13px;cursor:pointer}
+.os-preview-item-toggle .os-preview-item-summary{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:3px}
+.os-preview-item-head .os-preview-item-tools{display:flex;align-items:center;gap:8px;flex:none}
+.os-preview-item-body{padding:13px}
+.os-preview-item .os-preview-value{font-weight:850;color:var(--accent)}
+.os-preview-payment-list{margin-top:9px;display:grid;gap:5px}
+.os-preview-payment-line{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;padding:8px;background:var(--panel2);border-radius:8px}
+.os-preview-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.os-preview-summary>div{background:var(--panel2);padding:10px;border-radius:9px;min-width:0}
+.os-preview-summary small{font-size:11px;color:var(--muted);display:block}
+.os-preview-summary b{font-size:18px;display:block;margin-top:4px;overflow-wrap:anywhere}
+.os-preview-outstanding{color:var(--accent)}
+.os-preview-footer-total{font-weight:850;color:var(--accent);margin-right:auto;font-size:15px}
+.os-preview-demo-button{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(max-width:720px){.os-preview-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.os-preview-summary{grid-template-columns:1fr 1fr}.os-preview-summary>div:last-child{grid-column:1/-1}#modalRoot .os-preview-modal .modal-content{padding:11px}#modalRoot .os-preview-modal .modal-footer{flex-wrap:wrap}.os-preview-footer-total{width:100%}}
+@media(max-width:430px){.os-preview-fields{grid-template-columns:minmax(0,1fr)}.os-preview-fields .wide{grid-column:auto}.os-preview-item-head{flex-wrap:wrap}.os-preview-item-head .os-preview-item-tools{margin-left:auto}}
+
 /* V21 — contato do cliente e instalações */
 .v21-contact-line{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:5px;font-size:12px}
 .v21-contact-line .button{min-height:26px;padding:4px 7px;font-size:11px}
@@ -1844,7 +1883,7 @@ function ordersPage(){
  const allServices=[...new Set([...db.settings.services,...db.orders.flatMap(orderServices)])];
  return `${heading('Ordens de serviço','Avance as etapas e encontre rapidamente quem ainda precisa pagar.')}${demoBanner()}${!v18StockEnabled()?'<div class="notice" style="display:block;margin:10px 0">⏸ Estoque pausado: confirme as etapas sem descontar materiais. Pendências ficam em Configurações → Estoque a conferir.</div>':''}
  <div class="card">
-  <div class="toolbar"><div class="responsive-actions os-top-actions"><span class="pill blue">${db.orders.length} OS</span><button class="button small soft" data-action="import-excel-os">⬆ Importar Excel</button><button class="button small primary" data-action="new-os">＋ Nova OS</button></div></div>
+  <div class="toolbar"><div class="responsive-actions os-top-actions"><span class="pill blue">${db.orders.length} OS</span><button class="button small soft" data-action="import-excel-os">⬆ Importar Excel</button><button class="button small soft" data-action="preview-new-os">👁 Testar nova OS</button><button class="button small primary" data-action="new-os">＋ Nova OS</button></div></div>
   <div class="os-filterbar" role="group" aria-label="Filtros das ordens de serviço">
    ${quickOrderViews()}
    <label class="os-filter-field">Pagamento<select class="select order-filter" id="filterPayment" data-filter="payment"><option value="">Todos os pagamentos</option><option value="review" ${orderFilters.payment==='review'?'selected':''}>A conferir (importada do Excel)</option><option value="pending" ${orderFilters.payment==='pending'?'selected':''}>A cobrar (em aberto)</option><option value="none" ${orderFilters.payment==='none'?'selected':''}>Não pago (valor definido)</option><option value="unpriced" ${orderFilters.payment==='unpriced'?'selected':''}>Pendente · preço a definir</option><option value="partial" ${orderFilters.payment==='partial'?'selected':''}>Pago parcialmente</option><option value="full" ${orderFilters.payment==='full'?'selected':''}>Pago integralmente</option></select></label>
@@ -2127,6 +2166,130 @@ function v20SetArtQuantity(o,i,q){
 }
 function v20ServiceRequirements(){db.settings.finishRequirements??={};return db.settings.finishRequirements;}
 
+function openOSPreview(){
+ const state={items:[
+  {id:1,service:'Banner',description:'Banner promocional',qty:1,width:100,height:150,total:110,finish:'Bainha e ilhós',open:true},
+  {id:2,service:'Caneca personalizada',description:'Arte para caneca',qty:1,width:'',height:'',total:35,finish:'Não precisa',open:false}
+ ],nextId:3,payments:[],nextPaymentId:1};
+ const n=x=>{const v=Number(x);return Number.isFinite(v)&&v>0?v:0;};
+ const money=x=>brl(Math.round((x+Number.EPSILON)*100)/100);
+ const itemsSum=()=>state.items.reduce((sum,it)=>sum+n(it.total),0);
+ const paidSum=()=>state.payments.reduce((sum,p)=>sum+n(p.amount),0);
+ const rootBody=`<div class="os-preview-root" id="osPreviewRoot">
+ <div class="os-preview-safe">🧪 <strong>Prévia interativa, com dados fictícios.</strong> Pode preencher, adicionar, apagar ou simular pagamentos à vontade. Nada será cadastrado ou enviado ao Firebase.</div>
+ <section class="os-preview-card">
+  <div class="os-preview-card-head"><strong>👤 Cliente</strong><span class="pill blue">Cadastro rápido</span></div>
+  <div class="os-preview-fields">
+   <label class="wide">Nome do cliente<input class="input" autocomplete="off" id="osPvClient" placeholder="Digite o nome ou telefone..." value="Maria Aparecida (exemplo)"></label>
+   <label>Telefone / WhatsApp<input class="input" type="tel" id="osPvPhone" placeholder="(31) 99999-9999"></label>
+   <label class="full">Observações rápidas<textarea class="input" rows="2" id="osPvNotes" placeholder="Detalhes do pedido (opcional)"></textarea></label>
+  </div>
+ </section>
+ <section class="os-preview-card">
+  <div class="os-preview-card-head"><strong>▱ Serviços do pedido</strong><button type="button" class="button small primary" data-pv-action="add-item">＋ Adicionar serviço</button></div>
+  <div id="osPvItems"></div>
+ </section>
+ <section class="os-preview-card">
+  <div class="os-preview-card-head"><strong>💳 Pagamentos</strong><span class="pill blue">Simulação</span></div>
+  <div class="os-preview-summary">
+   <div><small>Total dos serviços</small><b id="osPvTotal">R$ 0,00</b></div>
+   <div><small>Recebido</small><b id="osPvPaid">R$ 0,00</b></div>
+   <div><small>Falta receber</small><b class="os-preview-outstanding" id="osPvDue">R$ 0,00</b></div>
+  </div>
+  <div class="os-preview-fields">
+   <label>Forma de pagamento<select class="select" id="osPvPayMethod"><option>Pix</option><option>Dinheiro</option><option>Débito</option><option>Crédito</option><option>Transferência</option></select></label>
+   <label>Valor recebido (R$)<input class="input" id="osPvPayAmount" type="number" min="0.01" step="0.01" placeholder="0,00"></label>
+   <label>Adicionar pagamento<button type="button" class="button soft" data-pv-action="add-payment">＋ Registrar no teste</button></label>
+  </div>
+  <div id="osPvPayments" class="os-preview-payment-list"></div>
+ </section>
+ <section class="os-preview-card">
+  <div class="os-preview-card-head"><strong>📅 Entrega e prioridade</strong></div>
+  <div class="os-preview-fields">
+   <label>Previsão de entrega<input type="date" class="input" id="osPvDelivery"></label>
+   <label>Prioridade<select class="select" id="osPvPriority"><option>Normal</option><option>Urgente</option></select></label>
+   <label>Informações adicionais<input class="input" id="osPvOther" placeholder="Opcional"></label>
+  </div>
+ </section></div>`;
+ // O retorno false bloqueia persist() do formulário de showModal.
+ showModal('Nova OS • prévia interativa',rootBody,()=>false,'Somente simulação',true);
+ const modal=document.querySelector('#modalRoot .modal');
+ modal.classList.add('os-preview-modal');
+ const tools=document.getElementById('osModalTools');
+ const top=document.createElement('div');
+ top.className='os-preview-id';
+ top.innerHTML=`<span class="os-preview-testflag">NÃO SALVA</span><span class="os-preview-top-pill">Nº OS: <b>EXEMPLO</b></span><span class="os-preview-top-pill">Data: <b>${dateLabel(today())}</b></span>`;
+ tools.before(top);
+ document.querySelector('#modalRoot .modal-footer').innerHTML='<strong class="os-preview-footer-total">Total: <span id="osPvFooterTotal">R$ 0,00</span></strong><button class="button" type="button" id="osPvClose">Fechar teste</button><button class="button os-preview-demo-button" type="button" id="osPvFakeSave">✓ Simular salvamento</button>';
+ document.getElementById('osPvClose').addEventListener('click',closeModal);
+ document.getElementById('osPvFakeSave').addEventListener('click',()=>notify('Simulação concluída! Nenhuma OS foi criada e nenhum dado foi enviado ao Firebase.'));
+ const area=document.getElementById('osPreviewRoot');
+ const brief=it=>[n(it.qty)+' un',it.width&&it.height?it.width+' × '+it.height+' cm':'',money(n(it.total))].filter(Boolean).join(' · ');
+ const itemHTML=(it,k)=>`<article class="os-preview-item" data-pv-id="${it.id}">
+  <div class="os-preview-item-head">
+   <button type="button" class="os-preview-item-toggle" data-pv-action="toggle-item" data-id="${it.id}" aria-expanded="${it.open}"><span>${it.open?'⌃':'⌄'}</span><span><span class="os-preview-item-name">${k+1}. ${safe(it.service||'Novo serviço')}</span><small class="os-preview-item-summary">${safe(brief(it))}</small></span></button>
+   <span class="os-preview-item-tools"><strong class="os-preview-value">${money(n(it.total))}</strong><button type="button" class="button small danger" data-pv-action="remove-item" data-id="${it.id}" ${state.items.length===1?'disabled':''} title="Remover serviço do teste">✕</button></span>
+  </div>
+  ${it.open?`<div class="os-preview-item-body"><div class="os-preview-fields">
+   <label>Serviço<input class="input" data-pv-field="service" list="osPvServiceOptions" value="${safe(it.service)}" placeholder="Ex.: Banner, caneca..."></label>
+   <label class="wide">Descrição<input class="input" data-pv-field="description" value="${safe(it.description)}" placeholder="Detalhes do serviço"></label>
+   <label>Quantidade<input class="input" data-pv-field="qty" type="number" min="1" step="1" value="${safe(it.qty)}"></label>
+   <label>Largura (cm)<input class="input" data-pv-field="width" type="number" min="0" step=".1" value="${safe(it.width)}"></label>
+   <label>Altura (cm)<input class="input" data-pv-field="height" type="number" min="0" step=".1" value="${safe(it.height)}"></label>
+   <label>Valor total deste serviço (R$)<input class="input" data-pv-field="total" type="number" min="0" step=".01" value="${safe(it.total)}"></label>
+   <label>Acabamento<select class="select" data-pv-field="finish">${['Não precisa','Bainha e ilhós','Bastão e ponteiras','Outro acabamento'].map(x=>`<option ${x===it.finish?'selected':''}>${x}</option>`).join('')}</select></label>
+  </div></div>`:''}
+ </article>`;
+ const list=document.createElement('datalist');list.id='osPvServiceOptions';
+ list.innerHTML=['Banner','Adesivo','Caneca personalizada','Foto 3x4','Foto 10x15','DTF UV','Camiseta personalizada','Placa PVC','Lona','Cartão de visita'].map(x=>`<option value="${safe(x)}"></option>`).join('');
+ area.appendChild(list);
+ function renderItems(){area.querySelector('#osPvItems').innerHTML=state.items.map(itemHTML).join('');updateTotals();}
+ function updateTotals(){
+  const total=itemsSum(),received=paidSum(),due=Math.max(0,total-received);
+  for(const [id,value] of [['osPvTotal',money(total)],['osPvPaid',money(received)],['osPvDue',money(due)],['osPvFooterTotal',money(total)]])document.getElementById(id).textContent=value;
+ }
+ function renderPayments(){
+  const box=document.getElementById('osPvPayments');
+  box.innerHTML=state.payments.map(p=>`<div class="os-preview-payment-line"><span>${safe(p.method)} · <strong>${money(p.amount)}</strong></span><button type="button" class="button small danger" data-pv-action="remove-payment" data-id="${p.id}">Remover</button></div>`).join('')||'<small class="hintline">Nenhum pagamento registrado neste teste.</small>';
+  updateTotals();
+ }
+ area.addEventListener('input',e=>{
+  const field=e.target.dataset.pvField,row=e.target.closest('[data-pv-id]');if(!row||!field)return;
+  const it=state.items.find(x=>String(x.id)===row.dataset.pvId);if(!it)return;
+  it[field]=['qty','width','height','total'].includes(field)?e.target.value===''?'':Number(e.target.value):e.target.value;
+  row.querySelector('.os-preview-item-name').textContent=(state.items.indexOf(it)+1)+'. '+(it.service||'Novo serviço');
+  row.querySelector('.os-preview-item-summary').textContent=brief(it);
+  row.querySelector('.os-preview-value').textContent=money(n(it.total));
+  updateTotals();
+ });
+ area.addEventListener('change',e=>{
+  if(e.target.dataset.pvField==='finish'){const row=e.target.closest('[data-pv-id]'),it=state.items.find(x=>String(x.id)===row?.dataset.pvId);if(it)it.finish=e.target.value;}
+ });
+ area.addEventListener('click',e=>{
+  const b=e.target.closest('[data-pv-action]');if(!b)return;
+  const cmd=b.dataset.pvAction,id=Number(b.dataset.id);
+  if(cmd==='toggle-item'){
+    const it=state.items.find(x=>x.id===id);if(it){it.open=!it.open;renderItems();}
+  }else if(cmd==='add-item'){
+    state.items.forEach(x=>x.open=false);
+    state.items.push({id:state.nextId++,service:'',description:'',qty:1,width:'',height:'',total:0,finish:'Não precisa',open:true});
+    renderItems();
+    area.querySelector('[data-pv-field="service"]')?.focus();
+  }else if(cmd==='remove-item'){
+    if(state.items.length>1){state.items=state.items.filter(x=>x.id!==id);renderItems();}
+  }else if(cmd==='add-payment'){
+    const amount=Number(document.getElementById('osPvPayAmount').value),method=document.getElementById('osPvPayMethod').value;
+    if(!Number.isFinite(amount)||amount<=0){notify('Digite um valor maior que zero para simular o recebimento.');return;}
+    if(paidSum()+amount>itemsSum()+.009){notify('Neste teste, o recebimento não pode ultrapassar o valor dos serviços.');return;}
+    state.payments.push({id:state.nextPaymentId++,method,amount});
+    document.getElementById('osPvPayAmount').value='';
+    renderPayments();
+  }else if(cmd==='remove-payment'){
+    state.payments=state.payments.filter(x=>x.id!==id);renderPayments();
+  }
+ });
+ renderItems();renderPayments();
+}
 function newOS(id,addItem=false){
  const old=db.orders.find(o=>o.id===id);
  const o=old?structuredClone(old):{id:rand(),number:Math.max(100,...db.orders.map(x=>num(x.number)))+1,date:today(),statusChangedAt:today(),client:'',service:'',description:'',status:'Arte',total:0,priceDefined:false,completedAt:'',notes:'',payments:[],materialId:'',materialQty:0,materialApplied:false,manualNext:false,next:''};
@@ -3870,7 +4033,7 @@ function handleAction(action,id,element){switch(action){
  case 'stock-package':editPackage(id);break;
  case 'stock-archived':stockShowArchived=!stockShowArchived;render();break;
  case 'stock-scrap':recordScrap(id);break;case 'stock-scrap-used':{const x=db.scraps.find(v=>v.id===id);if(x&&window.confirm('Marcar a sobra como utilizada?')){x.available=false;persist();render()}break;}
- case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'bulk-cancel':runBulk('cancel');break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
+ case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'bulk-cancel':runBulk('cancel');break;case 'preview-new-os':openOSPreview();break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
  case 'v20-stock-filter':{const mode=element.dataset.mode||'';stockFilters.conference=stockFilters.conference===mode?'':mode;render();break;}
  case 'v20-adjust-stock':v20AdjustStock(id);break;
  case 'v20-convert-unit':v20ConvertMaterialUnit(id);break;
