@@ -902,6 +902,12 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 .os-v23-client-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px}
 .os-v23-client-grid .field.full{grid-column:1/-1}
 .os-v23-client-grid .field textarea{min-height:60px}
+.os-v23-client-combo{position:relative;min-width:0}
+.os-v23-client-combo>.input{width:100%}
+.os-v23-client-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:235px;overflow:auto;z-index:100;padding:5px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:11px}
+.os-v23-client-suggestions[hidden]{display:none}
+.os-v23-client-option{display:block;width:100%;border:0;border-radius:7px;background:transparent;color:var(--ink);padding:10px 12px;text-align:left;cursor:pointer;font-size:12px}
+.os-v23-client-option:hover,.os-v23-client-option:focus-visible{background:var(--accent-soft);color:var(--accent)}
 .os-v23-item{margin-bottom:9px;padding:0!important;overflow:visible;border-left-width:4px}
 .os-v23-item-head{padding:11px 12px;margin:0!important;gap:9px}
 .os-v23-item-head .button{margin-left:0!important}
@@ -1220,7 +1226,7 @@ function markConcludedImportPaid(o){
 }
 let db=blank();
 db.settings.useAutoConsumption=false;
-let page='dashboard',filter='',modalState=null;
+let page='os',filter='',modalState=null;
 let productionContext=null; // OS e item atualmente em preparação guiada
 const tableSearch={compras:'',estoque:'',despesas:''};
 const stockFilters={categories:new Set(),unit:'',level:'',control:'',conference:''};
@@ -2491,13 +2497,12 @@ function newOS(id,addItem=false){
  </div></div></article>`;
 }
  function v23OfficialBody(){
- const names=[...new Set(db.orders.map(x=>x.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
  const statusOptions=[...new Set([...db.settings.statuses,o.status])];
  return `<div class="os-v23-form">
  <section class="os-v23-card">
   <div class="os-v23-card-heading"><h3>👤 Cliente</h3><span>Dados do pedido</span></div>
   <div class="formgrid os-v23-client-grid">
-  ${field('Nome do cliente *',`<input class="input" id="oClient" type="text" list="os-v23-client-history" maxlength="90" required autocomplete="off" value="${safe(o.client)}" placeholder="Digite o nome para localizar..."><datalist id="os-v23-client-history">${names.map(n=>`<option value="${safe(n)}"></option>`).join('')}</datalist>`)}
+  ${field('Nome do cliente *',`<div class="os-v23-client-combo"><input class="input" id="oClient" type="text" maxlength="90" required autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="os-v23-client-suggestions" value="${safe(o.client)}" placeholder="Digite o nome para localizar..."><div class="os-v23-client-suggestions" id="os-v23-client-suggestions" role="listbox" hidden></div></div>`)}
   ${field('Telefone / WhatsApp (opcional)',`<input class="input" id="oPhone" type="tel" maxlength="24" value="${safe(v21PhoneInfo(o.phone).valid?v21PhoneInfo(o.phone).formatted:(o.phone||''))}" placeholder="(31) 99999-9999">`)}
   ${field('Observações da OS',`<textarea class="input" id="oNotes" maxlength="600" rows="2" placeholder="Instruções ou recados, se houver">${safe(o.notes||'')}</textarea>`,true)}
   </div>
@@ -2637,9 +2642,41 @@ function newOS(id,addItem=false){
  $('#oDate').addEventListener('change',()=>{
   if(deliveryDateAuto)$('#oDeliveryDate').value=nextBusinessDay($('#oDate').value);
  });
- // Mantém a formatação e a busca do telefone de clientes existentes, sem texto auxiliar.
+ // Cliente: sugestões apenas após digitação; nunca mostrar toda a base ao focar em campo vazio.
+ const clientInput=$('#oClient'),clientList=$('#os-v23-client-suggestions');
+ const clientNames=[...new Set(db.orders.map(x=>String(x.client||'').trim()).filter(Boolean))];
+ const hideClientSuggestions=()=>{clientList.hidden=true;clientList.innerHTML='';clientInput.setAttribute('aria-expanded','false');};
+ const suggestClients=()=>{
+  const query=normalizedSearch(clientInput.value);
+  if(!query){hideClientSuggestions();return;}
+  const matches=clientNames.filter(name=>normalizedSearch(name).includes(query))
+   .sort((a,b)=>Number(normalizedSearch(b).startsWith(query))-Number(normalizedSearch(a).startsWith(query))||a.localeCompare(b,'pt-BR')).slice(0,10);
+  if(!matches.length){hideClientSuggestions();return;}
+  clientList.innerHTML=matches.map(name=>`<button class="os-v23-client-option" type="button" role="option" data-client-name="${safe(name)}">${safe(name)}</button>`).join('');
+  clientList.hidden=false;clientInput.setAttribute('aria-expanded','true');
+ };
+ function fillClientPhone(){
+  if($('#oPhone').value.trim())return;
+  const name=normalizedSearch(clientInput.value);
+  if(!name)return;
+  const prior=db.orders.slice().reverse().find(x=>normalizedSearch(x.client)===name&&v21PhoneInfo(x.phone).valid);
+  if(prior)$('#oPhone').value=v21PhoneInfo(prior.phone).formatted;
+ }
+ const chooseClient=name=>{clientInput.value=name;hideClientSuggestions();fillClientPhone();clientInput.focus();};
+ clientInput.addEventListener('input',suggestClients);
+ clientInput.addEventListener('focus',()=>{if(clientInput.value.trim())suggestClients();});
+ clientInput.addEventListener('blur',()=>{fillClientPhone();setTimeout(()=>{if(!clientList.contains(document.activeElement))hideClientSuggestions();},120);});
+ clientList.addEventListener('mousedown',e=>{if(e.target.closest('[data-client-name]'))e.preventDefault();});
+ clientList.addEventListener('click',e=>{const b=e.target.closest('[data-client-name]');if(b)chooseClient(b.dataset.clientName);});
+ clientInput.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){hideClientSuggestions();return;}
+  if(e.key==='Enter'&&!clientList.hidden){
+   const first=clientList.querySelector('[data-client-name]');
+   if(first){e.preventDefault();chooseClient(first.dataset.clientName);}
+  }
+ });
+ // Mantém a formatação do telefone já existente.
  $('#oPhone').addEventListener('blur',()=>{const info=v21PhoneInfo($('#oPhone').value);if(info.valid)$('#oPhone').value=info.formatted;});
- $('#oClient').addEventListener('blur',()=>{if($('#oPhone').value.trim())return;const name=normalizedSearch($('#oClient').value);const prior=db.orders.slice().reverse().find(x=>normalizedSearch(x.client)===name&&v21PhoneInfo(x.phone).valid);if(prior)$('#oPhone').value=v21PhoneInfo(prior.phone).formatted;});
  function v22SetInstallation(type){
   const enabled=type==='propria'||type==='terceirizada',third=type==='terceirizada';
   $('#oInstallEnabled').checked=enabled;
