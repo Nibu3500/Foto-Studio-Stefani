@@ -947,6 +947,30 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 @media(max-width:780px){.os-v23-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.os-v23-service-grid>.field.full{grid-column:1/-1}.os-v23-item-head{flex-wrap:wrap}.os-v23-item-value{margin-left:auto}}
 @media(max-width:520px){.os-v23-client-grid,.os-v23-delivery-grid{grid-template-columns:1fr}.os-v23-meta input{width:116px}.os-v23-card{padding:12px}#modalRoot .os-v23-official-modal .modal-content{padding:10px}.os-v23-item-head .button{padding:5px 7px}#modalRoot .os-v23-official-modal .modal-footer{gap:8px}}
 
+
+/* V24 · Correções de dados em OS prontas, separadas do histórico da produção. */
+#modalRoot .v24-correct-modal{width:min(1060px,calc(100vw - 20px));height:min(92dvh,960px)}
+#modalRoot .v24-correct-modal .modal-content{flex:1;min-height:0;overflow:auto;padding:18px}
+.v24-correct-list{display:grid;gap:12px}
+.v24-correct-notice{padding:12px 14px;border-radius:11px;background:var(--accent-soft);border:1px solid var(--line);color:var(--ink);font-size:12px;line-height:1.5;margin:0 0 14px}
+.v24-correct-item{border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:15px}
+.v24-correct-heading{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.v24-correct-heading>div{display:flex;flex-direction:column;gap:3px}
+.v24-correct-heading strong{font-size:14px}
+.v24-correct-heading small{font-size:11px;color:var(--muted)}
+.v24-correct-heading>span{font-size:14px;font-weight:800;color:var(--accent)}
+.v24-correct-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.v24-correct-fields .field.full{grid-column:1/-1}
+.v24-correct-fields .field{min-width:0}
+.v24-correct-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}
+.v24-correct-summary>div{border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--panel2)}
+.v24-correct-summary small{display:block;font-size:11px;color:var(--muted)}
+.v24-correct-summary strong{display:block;margin-top:4px;color:var(--accent);font-size:16px}
+.v24-correct-warning{color:var(--ink);padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);font-size:12px}
+.v24-correct-warning[hidden]{display:none}
+@media(max-width:700px){.v24-correct-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:450px){.v24-correct-fields{grid-template-columns:1fr}.v24-correct-summary{grid-template-columns:1fr 1fr}.v24-correct-summary>div:last-child{grid-column:1/-1}#modalRoot .v24-correct-modal .modal-content{padding:11px}}
+
 /* V21 — contato do cliente e instalações */
 .v21-contact-line{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:5px;font-size:12px}
 .v21-contact-line .button{min-height:26px;padding:4px 7px;font-size:11px}
@@ -2451,7 +2475,167 @@ function openOSPreview(){
  });
  renderItems();renderPayments();
 }
+function v24EditReadyOSData(id){
+ const o=db.orders.find(x=>x.id===id);if(!o)return;
+ const sourceItems=orderItems(o),isLegacy=!Array.isArray(o.items)||!o.items.length;
+ const round=(v,d=2)=>Math.round((Number(v)+Number.EPSILON)*10**d)/10**d;
+ const charge=v21InstallCharge(o);
+ const previousSum=isLegacy?Math.max(0,num(o.total)-charge):itemSum(sourceItems);
+ const adjustment=isLegacy?0:round(num(o.total)-previousSum-charge);
+ const originalTotal=num(o.total),received=paid(o);
+ const priced=it=>it.unitPrice!==null&&it.unitPrice!==undefined;
+ const oldItemTotal=(it,k)=>isLegacy?previousSum:itemSum([it]);
+ const rows=sourceItems.map((it,k)=>{
+  const total=oldItemTotal(it,k),quantity=num(it.quantity)||1,hasValue=isLegacy?hasPrice(o):priced(it);
+  const unit=hasValue?round(total/quantity,8):'';
+  const showTotal=hasValue?total:'';
+  const label=String(it.service||'Serviço')+' · '+String(it.status||'');
+  return `<section class="v24-correct-item" data-v24-item="${k}" data-price-basis="${it.priceBasis==='unit'?'unit':'total'}">
+   <div class="v24-correct-heading"><div><strong>${k+1}. ${safe(it.service||'Serviço')}</strong><small>${safe(it.status||o.status)}</small></div><span>${hasValue?brl(total):'Preço a definir'}</span></div>
+   <div class="formgrid v24-correct-fields">
+    ${field('Descrição',`<input class="input v24-description" maxlength="150" value="${safe(it.description||'')}" placeholder="Descrição correta">`,true)}
+    ${field('Quantidade',`<input class="input v24-quantity" type="number" min="0.001" step="any" value="${safe(quantity)}">`)}
+    ${field('Largura (cm)',`<input class="input v24-width" type="number" min="0" step="0.1" value="${it.widthCm??''}">`)}
+    ${field('Altura (cm)',`<input class="input v24-height" type="number" min="0" step="0.1" value="${it.heightCm??''}">`)}
+    ${field('Preço unitário (R$)',`<input class="input v24-unit" type="number" min="0" step="any" value="${unit}">`)}
+    ${field('Total do serviço (R$)',`<input class="input v24-total" type="number" min="0" step="0.01" value="${showTotal}">`)}
+   </div>
+   </section>`;
+ }).join('');
+ const body=`<p class="v24-correct-notice">✏️ <strong>Correção dos dados da OS.</strong> As medidas e valores aqui são informações do pedido. A etapa, o material consumido e todo o histórico da produção permanecem como foram registrados.</p>
+ <div class="v24-correct-list">${rows}</div>
+ <div class="v24-correct-summary">
+ <div><small>Total da OS</small><strong id="v24NewTotal">${brl(originalTotal)}</strong></div>
+ <div><small>Já recebido</small><strong>${brl(received)}</strong></div>
+ <div><small>Saldo</small><strong id="v24NewBalance">${brl(Math.max(0,originalTotal-received))}</strong></div>
+ </div>
+ ${Math.abs(adjustment)>=.005?`<p class="hintline">Ajuste anterior da OS (${brl(adjustment)}) será mantido no cálculo do total.</p>`:''}
+ <p id="v24PaymentWarning" class="v24-correct-warning" hidden></p>
+ <p class="hintline">Você pode corrigir as medidas estimadas após a produção sem refazer baixas no estoque. Pagamentos anteriores e status permanecem intactos.</p>`;
+ function eachRow(){return [...document.querySelectorAll('#modalForm [data-v24-item]')];}
+ function totalFromRow(row){
+  const raw=row.querySelector('.v24-total').value.trim();
+  return raw===''?null:Number(raw);
+ }
+ function updateTotals(){
+  const values=eachRow().map(totalFromRow);
+  if(values.some(x=>x!==null&&(!Number.isFinite(x)||x<0||x>100000000))){
+   $('#v24NewTotal').textContent='Confira os valores';
+   $('#v24NewBalance').textContent='—';return;
+  }
+  const sumNew=values.reduce((acc,x)=>acc+(x===null?0:x),0);
+  const nextTotal=Math.max(0,round(sumNew+charge+adjustment));
+  $('#v24NewTotal').textContent=brl(nextTotal);
+  $('#v24NewBalance').textContent=values.some(x=>x===null)?'A definir':brl(Math.max(0,nextTotal-received));
+  const warn=$('#v24PaymentWarning');
+  warn.hidden=received<=nextTotal+.009;
+  warn.textContent=received>nextTotal+.009?`Atenção: o cliente já pagou ${brl(received-nextTotal)} acima do novo total. Nenhum estorno será feito automaticamente.`:'';
+ }
+ showModal('Corrigir dados do serviço · OS #'+o.number,body,()=>{
+  const next=[],differences=[];
+  for(const [k,row] of eachRow().entries()){
+   const original=sourceItems[k];
+   const text=row.querySelector('.v24-description').value.trim();
+   const qraw=row.querySelector('.v24-quantity').value.trim(),qty=Number(qraw);
+   const measure=(selector)=>{
+    const raw=row.querySelector(selector).value.trim();
+    return raw===''?null:Number(raw);
+   };
+   const width=measure('.v24-width'),height=measure('.v24-height');
+   const totalRaw=row.querySelector('.v24-total').value.trim();
+   const total=totalRaw===''?null:Number(totalRaw);
+   const basis=row.dataset.priceBasis==='unit'?'unit':'total';
+   if(!qraw||!Number.isFinite(qty)||qty<=0||qty>1000000){
+    notify('Confira a quantidade do serviço '+(k+1)+'.');return false;
+   }
+   if([width,height].some(x=>x!==null&&(!Number.isFinite(x)||x<0||x>1000000))){
+    notify('Confira as medidas do serviço '+(k+1)+'.');return false;
+   }
+   if(total!==null&&(!Number.isFinite(total)||total<0||total>100000000)){
+    notify('Confira o valor do serviço '+(k+1)+'.');return false;
+   }
+   const nextTotal=total===null?0:round(total);
+   const unitPrice=total===null?null:round(nextTotal/qty,8);
+   next.push({description:text,quantity:qty,widthCm:width,heightCm:height,unitPrice,total:nextTotal,priceBasis:basis});
+   const label=original.service||'Serviço '+(k+1);
+   const previousTotal=oldItemTotal(original,k);
+   if(String(original.description||'')!==text)differences.push(`${label}: descrição corrigida.`);
+   if(Math.abs((num(original.quantity)||1)-qty)>.000001)differences.push(`${label}: quantidade ${num(original.quantity)||1} → ${qty}.`);
+   for(const [key,previous,current] of [['largura',original.widthCm,width],['altura',original.heightCm,height]]){
+    if(previous===null||previous===undefined||previous===''){
+     if(current!==null)differences.push(`${label}: ${key} informada: ${current} cm.`);
+    }else if(current===null){
+     differences.push(`${label}: ${key} removida (antes ${previous} cm).`);
+    }else if(Math.abs(Number(previous)-current)>.000001){
+     differences.push(`${label}: ${key} ${previous} → ${current} cm.`);
+    }
+   }
+   if((isLegacy?hasPrice(o):priced(original))!==(total!==null)||Math.abs(previousTotal-nextTotal)>.009){
+    differences.push(`${label}: valor ${brl(previousTotal)} → ${total===null?'a definir':brl(nextTotal)}.`);
+   }
+  }
+  const allPriced=next.every(x=>x.unitPrice!==null);
+  const nextTotal=Math.max(0,round(next.reduce((acc,it)=>acc+it.total,0)+charge+adjustment));
+  if(Math.abs(originalTotal-nextTotal)>.009&&!differences.some(x=>x.includes(': valor '))){
+   differences.push(`Total da OS: ${brl(originalTotal)} → ${brl(nextTotal)}.`);
+  }
+  if(!differences.length){notify('Nenhuma informação foi alterada.');return false;}
+  // Atualiza exclusivamente as informações comerciais; preserva IDs, etapas,
+  // flowV13, registros de consumo, lotes, pagamentos e eventos de produção.
+  if(isLegacy){
+   o.items=[{...sourceItems[0],...next[0]}];
+  }else{
+   for(let k=0;k<next.length;k++)Object.assign(o.items[k],next[k]);
+  }
+  if(next.length===1){
+   o.widthCm=next[0].widthCm;o.heightCm=next[0].heightCm;o.description=next[0].description;
+  }
+  o.total=nextTotal;
+  o.priceDefined=allPriced;
+  if(o.totalOverride!==undefined)o.totalOverride=nextTotal;
+  if(Math.abs(originalTotal-nextTotal)>.009){
+   o.priceAdjustments=Array.isArray(o.priceAdjustments)?o.priceAdjustments:[];
+   o.priceAdjustments.push({id:rand(),at:new Date().toISOString(),oldTotal:originalTotal,newTotal:nextTotal,reason:'Correção de dados do serviço',received});
+  }
+  v18AddHistory(o,'Dados do serviço corrigidos',differences.join('\n'),'alteracao');
+  if(received>nextTotal+.009)notify('Correções salvas. Há pagamento maior que o novo total: '+brl(received-nextTotal)+'.');
+  else notify('Dados corrigidos sem alterar produção, estoque ou status.');
+  setTimeout(()=>openOSFocus(id),0);
+  return true;
+ },'✓ Salvar correções',true);
+ const modal=$('#modalRoot .modal');
+ if(modal)modal.classList.add('v24-correct-modal');
+ $('#modalForm').noValidate=true;
+ const list=$('#modalForm');
+ list.addEventListener('input',e=>{
+  const row=e.target.closest('[data-v24-item]');if(!row)return;
+  const qtyInput=row.querySelector('.v24-quantity'),unitInput=row.querySelector('.v24-unit'),totalInput=row.querySelector('.v24-total');
+  const qty=Number(qtyInput.value),unit=Number(unitInput.value),total=Number(totalInput.value);
+  if(e.target===unitInput){
+   row.dataset.priceBasis='unit';
+   totalInput.value=unitInput.value.trim()===''||!Number.isFinite(qty)||qty<=0?'':String(round(qty*unit));
+  }else if(e.target===totalInput){
+   row.dataset.priceBasis='total';
+   unitInput.value=totalInput.value.trim()===''||!Number.isFinite(qty)||qty<=0?'':String(round(total/qty,8));
+  }else if(e.target===qtyInput){
+   if(!Number.isFinite(qty)||qty<=0){unitInput.value='';return;}
+   if(row.dataset.priceBasis==='unit'){
+    totalInput.value=unitInput.value.trim()===''?'':String(round(qty*unit));
+   }else{
+    unitInput.value=totalInput.value.trim()===''?'':String(round(total/qty,8));
+   }
+  }
+  updateTotals();
+ });
+ updateTotals();
+}
 function newOS(id,addItem=false){
+ const existing=db.orders.find(o=>o.id===id);
+ // Para serviços já prontos, a edição comercial não mexe nos dados de produção.
+ if(existing&&!addItem&&existing.status!=='Cancelada'&&(
+  ['Retirar e pagar','Retirar e já pago','Pagar','Concluída'].includes(existing.status)||
+  orderItems(existing).some(item=>item.status==='Pronto')
+ ))return v24EditReadyOSData(id);
  const old=db.orders.find(o=>o.id===id);
  const o=old?structuredClone(old):{id:rand(),number:Math.max(100,...db.orders.map(x=>num(x.number)))+1,date:today(),statusChangedAt:today(),client:'',service:'',description:'',status:'Arte',total:0,priceDefined:false,completedAt:'',notes:'',payments:[],materialId:'',materialQty:0,materialApplied:false,manualNext:false,next:''};
  let items=structuredClone(orderItems(o));if(addItem)items.push({id:rand(),service:'',description:'',quantity:1,unitPrice:null,total:0,priceBasis:'total',status:'A produzir',widthCm:null,heightCm:null,materialOrigin:'',productionMaterialType:''});
