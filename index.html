@@ -365,6 +365,10 @@ html[data-theme=dark] .pill.blue{background:#253d61;color:#8cc1ff}html[data-them
 
 /* V8 — filtros OS claros, cores por etapa e acompanhamento automático */
 .os-filterbar{row-gap:13px}
+/* A seleção das etapas acompanha a pesquisa, antes da lista de OS. */
+.os-stage-filters{padding:12px 18px;margin:0 0 12px}
+.os-stage-filters .stage-chips{margin-bottom:0}
+@media(max-width:480px){.os-stage-filters{padding:12px}}
 .os-quick-views{display:flex;flex-wrap:wrap;gap:8px;width:100%;align-items:center;padding:2px 0 5px}
 .os-quick-label{font-size:11px;font-weight:800;color:var(--muted);margin-right:2px}
 .os-quick-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:11px;padding:9px 13px;font-size:12px;font-weight:760;background:var(--panel2);color:var(--ink)}
@@ -1731,7 +1735,6 @@ function ordersPage(){
   <div class="toolbar"><div class="responsive-actions os-top-actions"><span class="pill blue">${db.orders.length} OS</span><button class="button small soft" data-action="import-excel-os">⬆ Importar Excel</button><button class="button small primary" data-action="new-os">＋ Nova OS</button></div></div>
   <div class="os-filterbar" role="group" aria-label="Filtros das ordens de serviço">
    ${quickOrderViews()}
-   <div id="stageFilterRoot" style="width:100%">${stageChips()}</div>
    <label class="os-filter-field">Pagamento<select class="select order-filter" id="filterPayment" data-filter="payment"><option value="">Todos os pagamentos</option><option value="review" ${orderFilters.payment==='review'?'selected':''}>A conferir (importada do Excel)</option><option value="pending" ${orderFilters.payment==='pending'?'selected':''}>A cobrar (em aberto)</option><option value="none" ${orderFilters.payment==='none'?'selected':''}>Não pago (valor definido)</option><option value="unpriced" ${orderFilters.payment==='unpriced'?'selected':''}>Pendente · preço a definir</option><option value="partial" ${orderFilters.payment==='partial'?'selected':''}>Pago parcialmente</option><option value="full" ${orderFilters.payment==='full'?'selected':''}>Pago integralmente</option></select></label>
    <label class="os-filter-field">Origem do material<select class="select order-filter" data-filter="materialOrigin"><option value="">Todos os materiais</option><option value="avulso" ${orderFilters.materialOrigin==='avulso'?'selected':''}>Material avulso</option><option value="normal" ${orderFilters.materialOrigin==='normal'?'selected':''}>Estoque normal</option></select></label><label class="os-filter-field">Serviço<select class="select order-filter" id="filterService" data-filter="service"><option value="">Todos os serviços</option>${allServices.map(s=>`<option value="${safe(s)}" ${orderFilters.service===s?'selected':''}>${safe(s)}</option>`).join('')}</select></label>
    <div class="os-date-controls" aria-label="Filtrar ordens por data de abertura">
@@ -1749,6 +1752,9 @@ function ordersPage(){
   </div>
  </div>
  <div class="bulk-bar card"><strong id="bulkCount">0 selecionadas</strong><input id="searchOrders" class="search os-search-inline" type="search" placeholder="🔎 Buscar nº, cliente, telefone ou serviço..." aria-label="Pesquisar ordens de serviço" value="${safe(orderFilters.search)}" autocomplete="off"><button type="button" class="button small primary" data-action="bulk-next">→ Próxima etapa</button><button type="button" class="button small danger" data-action="bulk-cancel">Cancelar selecionadas</button><small>Pesquise nesta barra; selecione OS para avançar ou cancelar em lote. O status de cada OS continua editável na própria linha.</small></div>
+ <div class="card os-stage-filters" aria-label="Filtros das etapas de produção">
+  <div id="stageFilterRoot">${stageChips()}</div>
+ </div>
  <div class="os-workspace ${panoramaCollapsed?'panorama-is-closed':''}" id="osWorkspace">
  <div class="card os-orders-table"><div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="selectAllOS" aria-label="Selecionar todas as OS exibidas"></th><th>OS / Cliente</th><th>Serviço</th><th>Valor / Recebido</th><th>Status</th><th>Próxima etapa</th><th>Ações</th><th>Data de conclusão</th></tr></thead><tbody id="ordersBody">${rowsOrders(filteredOrders())}</tbody></table></div></div>
  ${panoramaProduction()}
