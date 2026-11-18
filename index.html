@@ -929,6 +929,7 @@ html[data-theme="dark"] .v16-symbol{background:linear-gradient(135deg,#423568,#6
 .os-v23-extra>.formgrid,.os-v23-extra>.v21-install-panel{margin-top:12px}
 .os-v23-extra .v21-install-panel{margin-bottom:0}
 .os-v23-delivery-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.os-v23-date-hint{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.35}
 .os-v23-form .v20-service-suggest{z-index:60}
 @media(max-width:780px){.os-v23-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.os-v23-service-grid>.field.full{grid-column:1/-1}.os-v23-item-head{flex-wrap:wrap}.os-v23-item-value{margin-left:auto}}
 @media(max-width:520px){.os-v23-client-grid,.os-v23-delivery-grid{grid-template-columns:1fr}.os-v23-meta input{width:116px}.os-v23-card{padding:12px}#modalRoot .os-v23-official-modal .modal-content{padding:10px}.os-v23-item-head .button{padding:5px 7px}#modalRoot .os-v23-official-modal .modal-footer{gap:8px}}
@@ -2442,6 +2443,17 @@ function newOS(id,addItem=false){
  const o=old?structuredClone(old):{id:rand(),number:Math.max(100,...db.orders.map(x=>num(x.number)))+1,date:today(),statusChangedAt:today(),client:'',service:'',description:'',status:'Arte',total:0,priceDefined:false,completedAt:'',notes:'',payments:[],materialId:'',materialQty:0,materialApplied:false,manualNext:false,next:''};
  let items=structuredClone(orderItems(o));if(addItem)items.push({id:rand(),service:'',description:'',quantity:1,unitPrice:null,total:0,priceBasis:'total',status:'A produzir',widthCm:null,heightCm:null,materialOrigin:'',productionMaterialType:''});
  let pays=structuredClone(o.payments||[]);
+ // Previsão padrão: próximo dia útil (segunda a sexta), sem calendário de feriados.
+ const nextBusinessDay=iso=>{
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso||'')))return '';
+  const [y,m,d]=iso.split('-').map(Number);
+  const date=new Date(Date.UTC(y,m-1,d,12));
+  if(date.getUTCFullYear()!==y||date.getUTCMonth()!==m-1||date.getUTCDate()!==d)return '';
+  do{date.setUTCDate(date.getUTCDate()+1);}while([0,6].includes(date.getUTCDay()));
+  return date.toISOString().slice(0,10);
+ };
+ const initialDeliveryDate=old?(o.deliveryDate||''):nextBusinessDay(o.date);
+ let deliveryDateAuto=!old;
  const collapsedItems=new Set(items.slice(1).map(x=>x.id));
  if(addItem&&items.length>1)collapsedItems.delete(items[items.length-1].id);
  const paymentMarkup=()=>`<div class="payment-lines">${pays.map((p,i)=>`<div class="payment-line"><span><strong>${safe(p.method)}</strong> · ${brl(p.amount)} <small class="v21-net-info">${v21PaymentText(p)}</small></span><button type="button" class="button small danger remove-payment" data-i="${i}">Remover</button></div>`).join('')||'<span class="hintline">Nenhum pagamento lançado.</span>'}</div>`;
@@ -2505,7 +2517,7 @@ function newOS(id,addItem=false){
  <section class="os-v23-card">
   <div class="os-v23-card-heading"><h3>📅 Entrega e prioridade</h3><span>Preenchimento opcional</span></div>
   <div class="formgrid os-v23-delivery-grid">
-   ${field('Previsão de entrega',inp('oDeliveryDate',o.deliveryDate||'','date'))}
+   ${field('Previsão de entrega',`<input class="input" id="oDeliveryDate" type="date" value="${safe(initialDeliveryDate)}"><small class="os-v23-date-hint">Padrão: 1 dia útil após a abertura (segunda a sexta). Você pode alterar.</small>`)}
    ${field('Prioridade',sel('oPriority',[...new Set(['Normal','Urgente',o.priority].filter(Boolean))],o.priority||'Normal'))}
   </div>
  </section>
@@ -2621,6 +2633,10 @@ function newOS(id,addItem=false){
  <label>Data<input class="input" id="oDate" type="date" required value="${safe(o.date)}"></label>
  </div>`);
  $('#modalForm .modal-footer').insertAdjacentHTML('afterbegin','<strong class="os-v23-footer-total">Total da OS: <span id="os-v23-footer-total">R$ 0,00</span></strong>');
+ $('#oDeliveryDate').addEventListener('input',()=>{deliveryDateAuto=false;});
+ $('#oDate').addEventListener('change',()=>{
+  if(deliveryDateAuto)$('#oDeliveryDate').value=nextBusinessDay($('#oDate').value);
+ });
  // Mantém a formatação e a busca do telefone de clientes existentes, sem texto auxiliar.
  $('#oPhone').addEventListener('blur',()=>{const info=v21PhoneInfo($('#oPhone').value);if(info.valid)$('#oPhone').value=info.formatted;});
  $('#oClient').addEventListener('blur',()=>{if($('#oPhone').value.trim())return;const name=normalizedSearch($('#oClient').value);const prior=db.orders.slice().reverse().find(x=>normalizedSearch(x.client)===name&&v21PhoneInfo(x.phone).valid);if(prior)$('#oPhone').value=v21PhoneInfo(prior.phone).formatted;});
