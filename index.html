@@ -4297,7 +4297,7 @@ function v16SaveEditing(asCopy=false){if(!v16Editing)return;const f=structuredCl
 function v16StartFinishForOS(item,flow){const linked=v16RelevantModels(item.service);let model=flow.finishSnapshot||v16ModelById(flow.finishModelId);
  if(!model||!v16ModelMatches(model,item.service)){model=linked[0]||null;}
  v16SelectedFinishId=model?.id||'';
- if(flow.finishRows?.length){v13FinishDraft=structuredClone(flow.finishRows);}else v13FinishDraft=model?v16RowsForFinish(model,item):[];
+ if(flow.finishSaved||flow.finishRows?.length){v13FinishDraft=structuredClone(flow.finishRows||[]);}else v13FinishDraft=model?v16RowsForFinish(model,item):[];
 }
 function v16RowsForFinish(model,item){const p=v13Flow(item).print||{};const w=num(item.widthCm||p.widthCm),h=num(item.heightCm||p.heightCm),q=num(item.quantity||p.quantity||1);
  return (model.rules||[]).map(r=>{const m=v16ResolvedMaterial(r);return {materialId:m?.id||'',qty:v16Consume(model,r,w,h,q),estimate:v16Consume(model,r,w,h,q),noDeduct:!!r.noDeduct,sourceName:r.keyword||m?.name||'',mode:r.mode};});
@@ -4730,7 +4730,28 @@ function v14AttachDrag(){const svg=$('#v14Svg');if(!svg||v13PrintValues()?.previ
 }
 function v14AutoArrange(){const p=v13PrintValues();if(!p||!(p.width>0&&p.across>0&&p.q>0))return;
  v14Positions=v14LayoutFor(p.across,p.feed,p.q,p.width,p.margin);v14ManualLayout=false;v13ManualPrint=false;v13PrintPreview();}
-function v13ProductionPage(){const c=v13Current();if(!c)return heading('Produção','Selecione uma OS.');const {o,i,f}=c,p=f.print||{},locked=!!f.printConfirmed,starting=o.status==='A produzir';
+// V21: a OS só vai para retirada quando todos os serviços estiverem prontos.
+function v21GuidedOrderStatus(o){
+ const items=orderItems(o);
+ if(items.every(i=>i.status==='Pronto'))return v20PickupStatus(o);
+ if(items.some(i=>i.status==='Em produção'||i.status==='A produzir'||i.status==='Arte'))return 'Em produção';
+ if(items.some(i=>i.status==='Aguardando acabamento'))return 'Aguardando acabamento';
+ return 'Em produção';
+}
+function v21LeaveGuided(oid,iid,kind){
+ v20ForgetScreenDraft(oid,iid,kind);
+ v13Context=null; // go() não deve recriar o rascunho descartado/salvo.
+ go('os');
+}
+function v21CancelGuided(){
+ const c=v13Current();if(!c)return;
+ const kind=page==='v13finish'?'finish':'print';
+ const inBatch=kind==='print'&&v26PrintBatchQueue.some(q=>q.oid===c.o.id&&q.iid===c.i.id);
+ if(!window.confirm('Cancelar esta operação? As alterações não salvas serão descartadas. A OS não será cancelada e não haverá baixa de estoque.'+(inBatch?' A sequência de preparação em lote será encerrada.':'')))return;
+ v20ForgetScreenDraft(c.o.id,c.i.id,kind);v13Context=null;
+ if(inBatch)v26CancelPrintBatch();else go('os');
+}
+function v13ProductionPage(){const c=v13Current();if(!c)return heading('Produção','Selecione uma OS.');const {o,i,f}=c,p=f.print||{},locked=!!f.printConfirmed,starting=i.status==='A produzir';
  const preferredId=i.materialId||(!i.mainMaterialType?(mainRuleOf(serviceProcessFor(i.service))?.materialId||''):'');
  const preferred=db.materials.find(m=>m.id===preferredId&&!m.archived&&['m','m²','rolo'].includes(m.unit)&&isProductionMaterial(m));
  const material=p.materialId||preferred?.id||(!i.mainMaterialType?db.materials.find(m=>isProductionMaterial(m)&&/lona|vinil|adesiv/i.test(m.name))?.id:'')||'';
@@ -4743,7 +4764,7 @@ function v13ProductionPage(){const c=v13Current();if(!c)return heading('Produç�
  <section class="v13-box"><h3>Medidas e orientação · editáveis</h3><div class="v13-form"><label>Largura (cm)<input id="v13W" type="number" class="input" step="0.1" min="0.1" value="${p.widthCm??i.widthCm??''}" ${locked?'disabled':''}></label><label>Altura (cm)<input id="v13H" type="number" class="input" step="0.1" min="0.1" value="${p.heightCm??i.heightCm??''}" ${locked?'disabled':''}></label><label>Quantidade<input id="v13Q" class="input" type="number" min="1" step="1" value="${p.quantity??i.quantity??1}" ${locked?'disabled':''}></label><label>Margem entre fileiras (cm)<input id="v13Margin" class="input" type="number" min="0" step="0.1" value="${p.marginCm??0}" ${locked?'disabled':''}></label><label>Sobra para corte / avanço extra (cm)<input id="v15CutExtra" class="input" type="number" min="0" step="0.1" value="${p.cutExtraCm??(locked?0:15)}" ${locked?'disabled':''}></label><label>Orientação<select id="v13Orientation" class="select" ${locked?'disabled':''}><option value="normal" ${p.orientation!=='rotated'?'selected':''}>Normal</option><option value="rotated" ${p.orientation==='rotated'?'selected':''}>Girar 90°</option></select></label></div></section></div>
  <div class="v13-stack"><section class="v13-box"><h3>Material usado na impressão</h3><div class="v13-form"><label class="v13-full">Pesquisar material principal<input class="input" id="v14MaterialSearch" type="search" placeholder="Digite lona, vinil, adesivo..." autocomplete="off" ${locked?'disabled':''}></label><div class="v13-full"><small id="v14SearchInfo" class="v13-help"></small></div><div class="v15-inline-material v13-full"><label>Material principal<select class="select" id="v13Mat" ${locked?'disabled':''}>${v13MainMaterialOptions(material)}</select></label><label class="v15-scrap"><input id="v15Scrap" type="checkbox" ${p.origin==='avulso'?'checked':''} ${locked?'disabled':''}> ♻ Usar retalho</label></div><label>Bobina / lote físico<select id="v13Lot" class="select" ${locked?'disabled':''}></select></label><button type="button" id="v21ChoosePrintLot" class="button small soft" ${locked?'disabled':''}>↪ Abrir / trocar bobina</button><label>Largura do material / retalho (cm)<input id="v13BobWidth" type="number" class="input" min="0.1" step="0.1" value="${p.bobWidthCm??db.materials.find(m=>m.id===material)?.initialWidthCm??''}" ${locked?'disabled':''}></label></div><p class="v15-auto-note" id="v15AutoNote"></p><button type="button" class="button soft small v15-optimize" id="v15Optimize" ${locked?'disabled':''}>✨ Escolher bobina e orientação econômica</button><div class="v14-stock" id="v14StockInfo"></div><div class="v13-form"><label class="v13-full">Consumo real (<span id="v14RealUnit">${safe(db.materials.find(m=>m.id===material)?.unit==='rolo'?'m lineares':db.materials.find(m=>m.id===material)?.unit||'unidade')}</span>)<input id="v13Real" class="input" min="0" step="0.0001" type="number" value="${p.realAmount??''}" ${locked?'disabled':''}></label></div><p class="v13-help">A estimativa usa as dimensões da bobina e a disposição das peças. O consumo real pode ser ajustado e não será sobrescrito automaticamente depois de uma edição manual.</p></section>
  <section class="v13-box"><h3>Tinta utilizada · opcional</h3><p class="v13-help">Informe em mL, se quiser. O total é somado automaticamente ao editar C, M, Y ou K; você também pode ajustar o total manualmente. Nenhuma tinta será descontada automaticamente.</p><div class="v14-ink-grid">${v14CMYK.map(ch=>`<label>${ch}<input id="v14Ink${ch}" type="number" step="0.01" min="0" class="input" placeholder="0" value="${ink[ch]??''}" ${locked?'disabled':''}></label>`).join('')}</div><label class="v14-ink-total">Total (mL)<input type="number" id="v14InkTotal" class="input" min="0" step="0.01" placeholder="Opcional" value="${p.inkMl??''}" ${locked?'disabled':''}></label></section>
- <section class="v13-box"><h3>Continuar o trabalho</h3><p class="v13-help">${starting?'Confira os dados: salve e saia, ou conclua a impressão para avançar.':(v20NeedsFinish(i)?'Confirme o consumo de impressão e siga para o acabamento. A confirmação não será repetida.':'Confirme a impressão; sem acabamento, o serviço ficará pronto para retirada. A confirmação não será repetida.')}</p><div class="v13-actions">${!locked?`<button type="button" class="button soft" data-action="v13-save-print">Salvar e sair</button><button type="button" class="button primary v27-beta-button" data-action="v13-confirm-print"><span class="v27-beta-label">BETA</span><span>✓ Concluir impressão e avançar</span></button>`:`<button type="button" class="button primary" data-action="v13-open-finish" ${v20NeedsFinish(i)?'':'disabled'}>${v20NeedsFinish(i)?'Abrir acabamento →':'Impressão já confirmada ✓'}</button>`}${locked?'<button class="button" type="button" data-go="os">← Voltar às OS</button>':''}</div></section></div></div>`;
+ <section class="v13-box"><h3>Continuar o trabalho</h3><p class="v13-help">${starting?'Confira os dados: salve e saia, ou conclua a impressão para avançar.':(v20NeedsFinish(i)?'Confirme o consumo de impressão e siga para o acabamento. A confirmação não será repetida.':'Confirme a impressão; sem acabamento, o serviço ficará pronto para retirada. A confirmação não será repetida.')}</p><div class="v13-actions">${!locked?`<button type="button" class="button soft" data-action="v13-save-print">Salvar e manter em produção</button><button type="button" class="button primary" data-action="v13-confirm-print">${v20NeedsFinish(i)?'Concluir produção e ir para acabamento':'Concluir produção e enviar para retirada'}</button><button type="button" class="button" data-action="v21-cancel-guided">Cancelar</button>`:`<button type="button" class="button primary" data-action="v13-open-finish" ${v20NeedsFinish(i)?'':'disabled'}>${v20NeedsFinish(i)?'Abrir acabamento →':'Impressão já confirmada ✓'}</button>`}${locked?'<button class="button" type="button" data-go="os">← Voltar às OS</button>':''}</div></section></div></div>`;
 }
 function v13InitPrint(){if(page!=='v13print'||!$('#v13Plot'))return;
  v14LayoutKey='';v14Positions=[];v14ManualLayout=false;v15ManualLot=false;v15ManualOrientation=false;
@@ -4775,6 +4796,7 @@ function v13InitPrint(){if(page!=='v13print'||!$('#v13Plot'))return;
 function v13SavePrint(mode){const p=v13PrintValues();if(!p)return;if(mode==='confirm'&&p.f.printConfirmed){notify('Impressão já confirmada. Consulte o registro para evitar baixa duplicada.');return;}const previousStatus=p.o.status;const valid=[p.w,p.h,p.q].every(x=>Number.isFinite(x)&&x>0)&&Number.isSafeInteger(p.q)&&Number.isFinite(p.margin)&&p.margin>=0&&Number.isFinite(p.cutExtra)&&p.cutExtra>=0;
  if(!valid){notify('Informe medidas, margem e quantidade válidas.');return;}
  if(p.f.printConfirmed){notify('Impressão já descontada; não será registrada novamente.');return;}
+ if(!['A produzir','Em produção'].includes(p.i.status)||['Cancelada','Concluída'].includes(p.o.status)){notify('Este serviço não está disponível para produção.');return;}
  if(v18StockEnabled()&&p.origin!=='avulso'){
   if(!p.mat){notify('Escolha o material principal para impressão.');return;}
   if(!p.width||p.across>p.width+.00001){notify('A impressão não cabe na bobina ou está sem largura cadastrada.');return;}
@@ -4789,7 +4811,7 @@ function v13SavePrint(mode){const p=v13PrintValues();if(!p)return;if(mode==='con
  if(p.inkRaw!==''&&(!Number.isFinite(Number(p.inkRaw))||Number(p.inkRaw)<0)){notify('Consumo de tinta inválido. Informe número positivo ou deixe vazio.');return;}
  const stored={widthCm:p.w,heightCm:p.h,quantity:p.q,marginCm:p.margin,cutExtraCm:p.cutExtra,orientation:p.orient,origin:p.origin,materialId:p.mat?.id||'',lotId:p.lot?.id||'',bobWidthCm:p.width,estimatedAmount:Number.isFinite(p.estimate)?Number(p.estimate.toFixed(4)):0,realAmount:Number(p.actual.toFixed(4)),inkMl:p.inkRaw===''?null:Number(p.inkRaw),inkCMYK:Object.fromEntries(v14CMYK.map(ch=>[ch,p.inkVals[ch]===''?null:Number(p.inkVals[ch])])),layoutKey:p.layoutKey,layoutPositions:p.positions.map(z=>({...z})),manualLayout:p.manualLayout};
  if(mode==='confirm'){
-  if(!['A produzir','Em produção'].includes(p.o.status)){notify('A OS precisa estar em A produzir ou Em produção antes de confirmar a impressão.');return;}
+  if(!['A produzir','Em produção'].includes(p.i.status)||['Cancelada','Concluída'].includes(p.o.status)){notify('O serviço precisa estar em A produzir ou Em produção antes de confirmar a impressão.');return;}
   if(v18StockEnabled()&&p.origin!=='avulso'){
    const m=p.mat,amount=stored.realAmount,linear=m.unit==='m²'?amount/(p.width/100):amount;
    if(!Number.isFinite(linear)||linear<=0){notify('Consumo real não corresponde ao material selecionado.');return;}
@@ -4806,15 +4828,22 @@ function v13SavePrint(mode){const p=v13PrintValues();if(!p)return;if(mode==='con
   if(!v18StockEnabled())v18FlagStock(p.o,p.i.id,'Impressão Mimaki',p.mat?[{materialId:p.mat.id,materialName:p.mat.name,qty:stored.realAmount,unit:p.mat.unit}]:[]);
    p.f.printConfirmed=true;p.f.printConfirmedAt=new Date().toISOString();p.o.materialApplied=true;
   db.productionLogs.push({id:rand(),runId:'v13-'+p.o.id+'-'+p.i.id,orderId:p.o.id,itemId:p.i.id,stageId:'v13-print',stageName:'Impressão Mimaki',at:new Date().toISOString(),inkMl:stored.inkMl,inkCMYK:stored.inkCMYK,lines:!p.mat?[]:[{materialId:p.mat.id,materialName:p.mat.name,qty:stored.realAmount,unit:p.mat.unit,primary:true,lotId:stored.lotId,origin:p.origin,withoutStockDebit:!v18StockEnabled()||p.origin==='avulso'}],origin:p.origin});
-  p.i.status=v20NeedsFinish(p.i)?'Aguardando acabamento':'Pronto';p.o.status=allItemsReady(p.o)?v20PickupStatus(p.o):(v20NeedsFinish(p.i)?'Aguardando acabamento':'Em produção');p.o.statusChangedAt=today();
+  p.i.status=v20NeedsFinish(p.i)?'Aguardando acabamento':'Pronto';p.o.status=v21GuidedOrderStatus(p.o);if(previousStatus!==p.o.status)p.o.statusChangedAt=today();
  }
  p.f.print=stored;p.i.widthCm=p.w;p.i.heightCm=p.h;p.i.quantity=p.q;p.i.materialOrigin=p.origin;p.i.productionMaterialType=p.mat?.name||'';
- if(mode==='start'){p.o.status='Em produção';p.o.statusChangedAt=today();p.i.status='Em produção';}
- if(mode==='confirm'||mode==='start')followGuidedAdvance(p.o.id,previousStatus);
- persist();if(mode==='confirm'){v20ForgetScreenDraft(p.o.id,p.i.id,'print');if(v20NeedsFinish(p.i))v13Open(p.o.id,p.i.id,'finish');else go('os');notify(v20NeedsFinish(p.i)?'Impressão confirmada. Abra o acabamento para finalizar.':'Impressão confirmada. Acabamento dispensado; OS encaminhada conforme o pagamento.');}else if(mode==='start'){if(!v26NextPrintBatch(p.o.id,p.i.id,true)){go('os');notify('Produção iniciada. Nenhuma baixa efetuada ainda.');}}else{go('os');v20ForgetScreenDraft(p.o.id,p.i.id,'print');notify('Preparação salva. Nenhuma baixa realizada.');}
+ if(mode==='start'||mode==='save'){p.i.status='Em produção';p.o.status=v21GuidedOrderStatus(p.o);if(previousStatus!==p.o.status)p.o.statusChangedAt=today();}
+ followGuidedAdvance(p.o.id,previousStatus);
+ persist();
+ if(mode==='confirm'){
+  v21LeaveGuided(p.o.id,p.i.id,'print');
+  notify(v20NeedsFinish(p.i)?'Produção concluída. Serviço em Aguardando acabamento.':(orderItems(p.o).every(i=>i.status==='Pronto')?'Produção concluída. OS encaminhada conforme o pagamento.':'Produção concluída. Serviço pronto; aguarde os demais serviços da OS.'));
+ }else{
+  v20ForgetScreenDraft(p.o.id,p.i.id,'print');v13Context=null;
+  if(!v26NextPrintBatch(p.o.id,p.i.id,true)){go('os');notify('Dados salvos. Serviço em produção, sem baixa de estoque.');}
+ }
 }
 function v13FinishRowsUI(){const box=$('#v13FinishRows');if(!box)return;const c=v13Current(),locked=!!c?.f.finishConfirmed;
- box.innerHTML=v13FinishDraft.map((r,k)=>{const m=db.materials.find(x=>x.id===r.materialId),unit=m?prodUnit(m):'não vinculado';return `<div class="v13-material v16-finish-row"><div><label>Material<select class="select" data-v13-mat="${k}" ${locked?'disabled':''}>${v13FinishMaterialOptions(r.materialId)}</select></label><div class="v16-caption">${r.sourceName&&!m?'⚠ Vincule um material do estoque.':''} ${m?'Unidade de estoque: '+safe(unit):''}</div></div><div><label>Consumo real (${safe(unit)})<input class="input" data-v13-qty="${k}" min="0" step="0.0001" type="number" value="${num(r.qty)}" ${locked?'disabled':''}></label><div class="v16-caption">Estimado: ${dec(r.estimate??r.qty,3)} ${safe(unit)}</div></div><label class="toggle v16-checkbox"><input type="checkbox" data-v13-scrap="${k}" ${r.noDeduct?'checked':''} ${locked?'disabled':''}> Sobra (sem baixa)</label><button class="button danger small" type="button" data-v13-remove="${k}" ${locked?'disabled':''} title="Remover material">×</button></div>`}).join('')||'<div class="v16-blank">Nenhum material de acabamento. Quando não houver acabamento, use o botão Pular acabamento, sem descontar insumos.</div>';
+ box.innerHTML=v13FinishDraft.map((r,k)=>{const m=db.materials.find(x=>x.id===r.materialId),unit=m?prodUnit(m):'não vinculado';return `<div class="v13-material v16-finish-row"><div><label>Material<select class="select" data-v13-mat="${k}" ${locked?'disabled':''}>${v13FinishMaterialOptions(r.materialId)}</select></label><div class="v16-caption">${r.sourceName&&!m?'⚠ Vincule um material do estoque.':''} ${m?'Unidade de estoque: '+safe(unit):''}</div></div><div><label>Consumo real (${safe(unit)})<input class="input" data-v13-qty="${k}" min="0" step="0.0001" type="number" value="${num(r.qty)}" ${locked?'disabled':''}></label><div class="v16-caption">Estimado: ${dec(r.estimate??r.qty,3)} ${safe(unit)}</div></div><label class="toggle v16-checkbox"><input type="checkbox" data-v13-scrap="${k}" ${r.noDeduct?'checked':''} ${locked?'disabled':''}> Sobra (sem baixa)</label><button class="button danger small" type="button" data-v13-remove="${k}" ${locked?'disabled':''} title="Remover material">×</button></div>`}).join('')||'<div class="v16-blank">Nenhum material de acabamento. Se não houver acabamento neste pedido, marque a opção correspondente antes de concluir.</div>';
 }
 function v13FinishPage(){const c=v13Current();if(!c)return heading('Acabamento','Selecione uma OS.');const {o,i,f}=c,p=f.print||{},locked=!!f.finishConfirmed,linked=v16RelevantModels(i.service),selected=locked?f.finishModelId:v16SelectedFinishId;
  return `${heading('Acabamento · OS #'+o.number,`Serviço: ${safe(i.service)} · materiais calculados pela OS`)}
@@ -4825,7 +4854,7 @@ function v13FinishPage(){const c=v13Current();if(!c)return heading('Acabamento',
  <button class="button soft" id="v13AddFinish" type="button" ${locked?'disabled':''}>＋ Adicionar material avulso</button>
  <label class="toggle" style="margin-top:13px"><input type="checkbox" id="v13NoFinish" ${f.noFinish||((v16ModelById(selected)?.rules||[]).length===0&&!!selected)?'checked':''} ${locked?'disabled':''}> Não tem acabamento neste pedido (pular esta etapa)</label>
  <label style="margin-top:12px">Observações<input type="text" id="v13FinishNotes" class="input" maxlength="180" value="${safe(f.finishNotes||'')}" ${locked?'disabled':''}></label>${locked?'<p class="v13-success">Acabamento confirmado. Baixa realizada apenas uma vez.</p>':''}</section></div>
- <section class="v13-box"><h3>Confirmar etapa</h3><p class="v13-help">Revise as unidades: 50 em um material cadastrado em metros significa 50 metros. Para 50 centímetros, informe <b>0,50 m</b>. O sistema mostra a unidade em cada campo.</p><div class="v13-actions">${!locked?`<button class="button soft" data-action="v13-save-finish" type="button">Salvar sem baixa</button><button class="button primary" data-action="v13-confirm-finish" type="button">✓ Concluir acabamento e liberar retirada</button><button class="button soft" data-action="v21-skip-finish" type="button">↪ Pular acabamento (sem baixa)</button>`:''}<button class="button" data-go="os" type="button">← Voltar às OS</button></div><div class="v16-warning">Grampos não são controlados. As quantidades podem ser ajustadas por serviço antes da baixa.</div></section></div>`;
+ <section class="v13-box"><h3>Confirmar etapa</h3><p class="v13-help">Revise as unidades: 50 em um material cadastrado em metros significa 50 metros. Para 50 centímetros, informe <b>0,50 m</b>. O sistema mostra a unidade em cada campo.</p><div class="v13-actions">${!locked?`<button class="button soft" data-action="v13-save-finish" type="button">Salvar e manter em acabamento</button><button class="button primary" data-action="v13-confirm-finish" type="button">Concluir acabamento</button><button class="button" data-action="v21-cancel-guided" type="button">Cancelar</button>`:'<button class="button" data-go="os" type="button">← Voltar às OS</button>'}</div><div class="v16-warning">Grampos não são controlados. As quantidades podem ser ajustadas por serviço antes da baixa.</div></section></div>`;
 }
 function v13InitFinish(){if(page!=='v13finish')return;v20RestoreScreenDraft('finish');v13FinishRowsUI();const c=v13Current();if(!c||c.f.finishConfirmed)return;
  $('#v16OSFinishSelect')?.addEventListener('change',e=>{const model=v16ModelById(e.target.value);v16SelectedFinishId=model?.id||'';v13FinishDraft=model?v16RowsForFinish(model,c.i):[];$('#v13NoFinish').checked=!!model&&!model.rules.length;v13FinishRowsUI();});
@@ -4834,7 +4863,8 @@ function v13InitFinish(){if(page!=='v13finish')return;v20RestoreScreenDraft('fin
  $('#v13FinishRows')?.addEventListener('click',e=>{const r=e.target.closest('[data-v13-remove]');if(r){v13FinishDraft.splice(Number(r.dataset.v13Remove),1);v13FinishRowsUI();}});
  $('#v13AddFinish')?.addEventListener('click',()=>{v13FinishDraft.push({materialId:'',qty:0,estimate:0,noDeduct:false});v13FinishRowsUI();});
 }
-function v13SaveFinish(confirm){const c=v13Current();if(!c||c.f.finishConfirmed)return;const previousStatus=c.o.status,noFinish=!!$('#v13NoFinish')?.checked||(!v18StockEnabled()&&!v16SelectedFinishId&&!v13FinishDraft.length),model=v16ModelById(v16SelectedFinishId)||c.f.finishSnapshot||null;
+function v13SaveFinish(confirm){const c=v13Current();if(!c||c.f.finishConfirmed)return;
+ if(!c.f.printConfirmed||c.i.status!=='Aguardando acabamento'||['Cancelada','Concluída'].includes(c.o.status)){notify('Confirme a produção antes de salvar ou concluir o acabamento.');return;}const previousStatus=c.o.status,noFinish=!!$('#v13NoFinish')?.checked||(!v18StockEnabled()&&!v16SelectedFinishId&&!v13FinishDraft.length),model=v16ModelById(v16SelectedFinishId)||c.f.finishSnapshot||null;
  if(!model&&!c.f.finishRows?.length&&!noFinish){notify('Selecione um modelo de acabamento vinculado a este serviço.');return;}
  const rows=[],byMaterial=new Map();if(!noFinish){for(const r of v13FinishDraft){const q=Number(r.qty);if(!Number.isFinite(q)||q<0){notify('Quantidade inválida. Confira a unidade e o consumo.');return;}if(v18StockEnabled()&&q>0&&!r.materialId&&!r.noDeduct){notify('Selecione um material do estoque para cada consumo.');return;}if(r.materialId&&q>0){const m=db.materials.find(x=>x.id===r.materialId);if(!m){if(!v18StockEnabled()){rows.push({materialId:r.materialId,qty:q,unit:'',noDeduct:true,materialName:r.sourceName||'Material não vinculado'});continue;}notify('Material não encontrado.');return;}rows.push({materialId:r.materialId,qty:q,unit:prodUnit(m),noDeduct:!!r.noDeduct});if(!r.noDeduct)byMaterial.set(m.id,(byMaterial.get(m.id)||0)+q);}}}
  if(confirm&&v18StockEnabled()&&!noFinish&&!rows.length){notify('Informe materiais consumidos ou marque “Não descontar nenhum material”.');return;}
@@ -4851,10 +4881,10 @@ function v13SaveFinish(confirm){const c=v13Current();if(!c||c.f.finishConfirmed)
  }
   if(!v18StockEnabled())v18FlagStock(c.o,c.i.id,'Acabamento',rows.map(r=>({...r,materialName:r.materialName||db.materials.find(x=>x.id===r.materialId)?.name||'Material não vinculado'})));
   c.f.finishConfirmed=true;c.f.finishConfirmedAt=new Date().toISOString();c.i.status='Pronto';db.productionLogs.push({id:rand(),runId:'v13-'+c.o.id+'-'+c.i.id,orderId:c.o.id,itemId:c.i.id,stageId:'v16-finish',stageName:'Acabamento',at:new Date().toISOString(),finishModelId:model?.id,finishModelName:model?.name,lines:rows.map(r=>({...r,materialName:db.materials.find(x=>x.id===r.materialId)?.name||''}))});
- c.o.status=allItemsReady(c.o)?paymentSituation(c.o)==='full'?'Retirar e já pago':'Retirar e pagar':'Em produção';c.o.statusChangedAt=today();
+ c.o.status=v21GuidedOrderStatus(c.o);if(previousStatus!==c.o.status)c.o.statusChangedAt=today();
  }
- c.f.finishRows=structuredClone(v13FinishDraft);c.f.noFinish=noFinish;if(confirm&&noFinish){c.f.finishSkipped=true;c.i.needsFinish=false;} c.f.finishNotes=$('#v13FinishNotes')?.value||'';c.f.finishModelId=v16SelectedFinishId;c.f.finishSnapshot=model?structuredClone(model):null;
- if(confirm){v20ForgetScreenDraft(c.o.id,c.i.id,'finish');}followGuidedAdvance(c.o.id,previousStatus);persist();go('os');notify(confirm?(v18StockEnabled()?'Acabamento confirmado. Materiais conferidos e descontados quando aplicável.':'Acabamento confirmado sem baixa. OS marcada para conferir estoque.'):'Acabamento salvo sem baixa.');
+ c.f.finishRows=structuredClone(v13FinishDraft);c.f.finishSaved=true;c.f.noFinish=noFinish;if(confirm&&noFinish){c.f.finishSkipped=true;c.i.needsFinish=false;} c.f.finishNotes=$('#v13FinishNotes')?.value||'';c.f.finishModelId=v16SelectedFinishId;c.f.finishSnapshot=model?structuredClone(model):null;
+ if(!confirm){c.i.status='Aguardando acabamento';c.o.status=v21GuidedOrderStatus(c.o);if(previousStatus!==c.o.status)c.o.statusChangedAt=today();}followGuidedAdvance(c.o.id,previousStatus);persist();v21LeaveGuided(c.o.id,c.i.id,'finish');notify(confirm?(orderItems(c.o).every(i=>i.status==='Pronto')?'Acabamento concluído. OS encaminhada para '+c.o.status+'.':'Acabamento concluído. Serviço pronto; aguarde os demais serviços da OS.'):'Dados salvos. Serviço em Aguardando acabamento, sem baixa de estoque.');
 }
 
 function handleAction(action,id,element){switch(action){
@@ -4892,7 +4922,7 @@ function handleAction(action,id,element){switch(action){
  case 'v16-remove-rule':if(v16Editing){v16Editing.rules.splice(Number(element.dataset.index),1);$('#v16RuleRows').innerHTML=v16EditorRows();v16Simulate();}break;
  case 'v16-save-finish':v16SaveEditing(false);break;case 'v16-save-copy':v16SaveEditing(true);break;
 
- case 'v13-save-print':v13SavePrint('save');break;case 'v13-start':v13SavePrint('start');break;case 'v13-confirm-print':v13SavePrint('confirm');break;case 'v13-open-finish':{const c=v13Current();if(c)v13Open(c.o.id,c.i.id,'finish');break;}case 'v21-skip-finish':{if(window.confirm('Marcar este serviço como SEM ACABAMENTO e liberar a retirada, sem descontar materiais?')){const opt=$('#v13NoFinish');if(opt)opt.checked=true;v13SaveFinish(true);}break;}case 'v13-save-finish':v13SaveFinish(false);break;case 'v13-confirm-finish':v13SaveFinish(true);break;case 'export-backup':exportBackup();break;case 'import-backup':$('#importFile').click();break;case 'new-process':editProcess();break;case 'process-example':createExampleProcess();break;
+ case 'v21-cancel-guided':v21CancelGuided();break;case 'v13-save-print':v13SavePrint('save');break;case 'v13-start':v13SavePrint('start');break;case 'v13-confirm-print':v13SavePrint('confirm');break;case 'v13-open-finish':{const c=v13Current();if(c)v13Open(c.o.id,c.i.id,'finish');break;}case 'v21-skip-finish':{if(window.confirm('Marcar este serviço como SEM ACABAMENTO e liberar a retirada, sem descontar materiais?')){const opt=$('#v13NoFinish');if(opt)opt.checked=true;v13SaveFinish(true);}break;}case 'v13-save-finish':v13SaveFinish(false);break;case 'v13-confirm-finish':v13SaveFinish(true);break;case 'export-backup':exportBackup();break;case 'import-backup':$('#importFile').click();break;case 'new-process':editProcess();break;case 'process-example':createExampleProcess();break;
  case 'edit-process':editProcess(id);break;
  case 'duplicate-process':editProcess('',id);break;
  case 'archive-process':archiveProcess(id);break;
@@ -5043,13 +5073,13 @@ function v20SaveScreenDraft(){if(!['v13print','v13finish'].includes(page)||!v13C
  const kind=page==='v13print'?'print':'finish',c=v13Current();if(!c)return;
  if(kind==='print'&&c.f.printConfirmed)return;if(kind==='finish'&&c.f.finishConfirmed)return;
  const fields=[...document.querySelectorAll('#content input[id],#content select[id],#content textarea[id]')].filter(x=>!x.disabled);
- const values={};for(const el of fields){if(!/^v1[345]/.test(el.id))continue;values[el.id]=el.type==='checkbox'?el.checked:el.value;}
+ const values={};for(const el of fields){if(!/^v1[345]/.test(el.id)&&el.id!=='v16OSFinishSelect')continue;values[el.id]=el.type==='checkbox'?el.checked:el.value;}
  const data=v20Drafts();data[v20DraftId(c.o.id,c.i.id,kind)]={values,finishRows:kind==='finish'?structuredClone(v13FinishDraft):undefined,finishModel:kind==='finish'?v16SelectedFinishId:undefined};
  try{localStorage.setItem(v20DraftKey,JSON.stringify(data))}catch(e){};
 }
 function v20RestoreScreenDraft(kind){const c=v13Current();if(!c||c.f[kind==='print'?'printConfirmed':'finishConfirmed'])return;
  const data=v20Drafts()[v20DraftId(c.o.id,c.i.id,kind)];if(!data)return;
- if(kind==='finish'&&data.finishRows){v13FinishDraft=data.finishRows;v16SelectedFinishId=data.finishModel||v16SelectedFinishId;}
+ if(kind==='finish'&&data.finishRows){v13FinishDraft=data.finishRows;v16SelectedFinishId=data.finishModel??v16SelectedFinishId;}
  for(const [id,v] of Object.entries(data.values||{})){const el=document.getElementById(id);if(el&&!el.disabled){if(el.type==='checkbox')el.checked=!!v;else el.value=v;}}
 }
 function v20ForgetScreenDraft(oid,iid,kind){const d=v20Drafts();delete d[v20DraftId(oid,iid,kind)];try{localStorage.setItem(v20DraftKey,JSON.stringify(d))}catch(e){}}
