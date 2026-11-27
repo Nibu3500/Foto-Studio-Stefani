@@ -1197,7 +1197,7 @@ function v21OpenWhatsApp(id,element){
  if(!p.valid){notify('Cadastre um telefone válido para abrir a conversa.');return;}
  if(!v28PickupReady(o)||!element){v28LaunchWhatsApp(p);return;}
  const wasOpen=element.getAttribute('aria-expanded')==='true';v28CloseWhatsAppMenus();if(wasOpen)return;
- const menu=document.createElement('div');menu.className='v28-wa-menu';menu.setAttribute('role','group');menu.setAttribute('aria-label','Opções do WhatsApp');
+ const menu=document.createElement('div');menu.className='v28-wa-menu';menu.addEventListener('click',e=>e.stopPropagation());menu.setAttribute('role','group');menu.setAttribute('aria-label','Opções do WhatsApp');
  element.setAttribute('aria-expanded','true');element.closest('.v21-contact-line').append(menu);
  const add=(label,fn)=>{const b=document.createElement('button');b.type='button';b.className='button small soft';b.textContent=label;b.onclick=fn;menu.append(b);return b;};
  add('Abrir conversa',()=>{v28CloseWhatsAppMenus();v28LaunchWhatsApp(p);});
