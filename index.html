@@ -1301,7 +1301,7 @@ function stockFilterControls(){
  <div class="os-filter-count" id="stockFilterCount"><strong>${filteredStock().length}</strong> de ${db.materials.length} materiais exibidos · selecione mais de um grupo</div></div>`;
 }
 const normalizedSearch=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-const orderFilters={statuses:new Set(),search:'',status:'',payment:'',service:'',materialOrigin:'',materialType:'',quickView:'',showPaidCompleted:false,dateMode:'all',dateMonth:today().slice(0,7),dateFrom:today(),dateTo:today()};
+const orderFilters={statuses:new Set(),search:'',status:'',payment:'',service:'',materialOrigin:'',materialType:'',quickView:'',completionMonth:'',showPaidCompleted:false,dateMode:'all',dateMonth:today().slice(0,7),dateFrom:today(),dateTo:today()};
 const followStageKey='stefani_v8_follow_stage';
 let followStageOn=true;
 try{followStageOn=localStorage.getItem(followStageKey)!=='0'}catch(e){}
@@ -1540,12 +1540,18 @@ function stageChips(){
  const isAll=!chosen.size&&!orderFilters.quickView;
  return `<div class="stage-chips" role="group" aria-label="Filtrar por uma etapa de cada vez"><button type="button" class="stage-chip ${isAll?'active':''}" data-action="stage-filter" data-status="" aria-pressed="${isAll}">Todas <span class="chip-count">${all.length}</span></button>${stages.filter(st=>counts.get(st)>0||chosen.has(st)).map(st=>`<button type="button" class="stage-chip ${chosen.has(st)?'active':''}" data-stage="true" style="--stage-accent:${panoramaStatusColor(st)}" data-action="stage-filter" data-status="${safe(st)}" aria-pressed="${chosen.has(st)}">${safe(st)} <span class="chip-count">${counts.get(st)||0}</span></button>`).join('')}</div><small class="hintline">Uma etapa por vez: ao escolher outra, a anterior é desmarcada. “Todas” limpa a etapa e respeita “Ocultar concluídas”.</small>`;
 }
+function completionMonthKey(){const m=orderFilters.completionMonth|| (orderFilters.dateMode==='month'?orderFilters.dateMonth:'');return /^\d{4}-(0[1-9]|1[0-2])$/.test(m)?m:today().slice(0,7);}
+function completionRange(){if(orderFilters.completionMonth==='all')return null;const m=completionMonthKey(),[y,n]=m.split('-').map(Number);return {from:m+'-01',to:monthEnd(y,n),label:'Mês '+m.split('-').reverse().join('/')};}
+function completedInRange(o,range){return o.status==='Concluída'&&(!range||(validISO(o.completedAt)&&o.completedAt>=range.from&&o.completedAt<=range.to));}
 function quickOrderViews(){
  const active=orderFilters.quickView;
- const configs=[['andamento','⚙ Em andamento'],['receber','💰 A receber'],['concluidas','✓ Concluídas']];
- return `<div class="os-quick-views" id="osQuickViews" role="group" aria-label="Atalhos para visualizar ordens"><span class="os-quick-label">Visualização rápida</span>${configs.map(([id,label])=>`<button type="button" class="os-quick-btn ${active===id?'active':''}" data-action="os-quick" data-view="${id}" aria-pressed="${active===id}">${label} <span class="os-quick-count">${filteredOrders({ignoreStages:true,overrideQuick:id}).length}</span></button>`).join('')}</div>`;
+ const completionCount=db.orders.filter(o=>completedInRange(o,completionRange())).length;
+ const undated=db.orders.filter(o=>o.status==='Concluída'&&!validISO(o.completedAt)).length;
+ const configs=[['andamento','⚙ Em andamento'],['receber','💰 A receber'],['concluidas',orderFilters.completionMonth==='all'?'✓ Concluídas (histórico)':'✓ Concluídas · '+completionMonthKey().split('-').reverse().join('/')]];
+ return `<div class="os-quick-views" id="osQuickViews" role="group" aria-label="Atalhos para visualizar ordens"><span class="os-quick-label">Visualização rápida</span>${configs.map(([id,label])=>`<button type="button" class="os-quick-btn ${active===id?'active':''}" data-action="os-quick" data-view="${id}" aria-pressed="${active===id}">${label} <span class="os-quick-count">${id==='concluidas'?completionCount:filteredOrders({ignoreStages:true,overrideQuick:id}).length}</span></button>`).join('')}${active==='concluidas'?`<label class="os-filter-field" style="width:auto">Mês de conclusão<input id="filterCompletionMonth" type="month" class="input" value="${orderFilters.completionMonth==='all'?'':safe(completionMonthKey())}"></label><button type="button" class="os-quick-btn ${orderFilters.completionMonth==='all'?'active':''}" data-action="os-completion-history">${orderFilters.completionMonth==='all'?'Voltar ao mês atual':'Todas as datas'}</button><small class="hintline">Total de OS concluídas no período, pela data de conclusão. Outros filtros podem reduzir a lista.${undated?' '+undated+' OS sem data de conclusão (consulte em Todas as datas).':''}</small>`:''}</div>`;
 }
-function orderDateRange(){
+function orderDateRange(view=orderFilters.quickView){
+ if(view==='concluidas')return completionRange();
  const mode=orderFilters.dateMode,day=today();
  if(mode==='today')return {from:day,to:day,label:'Hoje'};
  if(mode==='week'){const dayNum=new Date().getDay(),off=(dayNum+6)%7;return {from:daysAgo(off),to:day,label:'Esta semana'};}
@@ -1637,10 +1643,11 @@ function v24MaterialFilterChips(){
 
 function filteredOrders({ignoreStages=false,ignoreMaterialType=false,overrideQuick=null}={}){
  const query=normalizedSearch(orderFilters.search);
- const dates=orderDateRange();
  const view=overrideQuick===null?orderFilters.quickView:overrideQuick;
+ const dates=orderDateRange(view);
  return db.orders.filter(o=>{
-  if(dates&&(!validISO(o.date)||o.date<dates.from||o.date>dates.to))return false;
+  if(view==='concluidas'){if(!completedInRange(o,dates))return false;}
+  else if(dates&&(!validISO(o.date)||o.date<dates.from||o.date>dates.to))return false;
   if(orderFilters.materialOrigin==='avulso'&&!hasLooseMaterial(o))return false;
   if(orderFilters.materialOrigin==='normal'&&hasLooseMaterial(o))return false;
   if(!ignoreMaterialType&&orderFilters.materialType&&!v24OrderMaterialTypes(o).includes(orderFilters.materialType))return false;
@@ -1721,11 +1728,12 @@ function refreshOrdersList({skipPanorama=false}={}){
  const chipRoot=$('#stageFilterRoot');if(chipRoot)chipRoot.innerHTML=stageChips();
  const materialChipRoot=$('#materialFilterRoot');if(materialChipRoot)materialChipRoot.innerHTML=v24MaterialFilterChips();
  const quickRoot=$('#osQuickViews');if(quickRoot)quickRoot.outerHTML=quickOrderViews();
+ const openingDates=$('#osOpeningDates');if(openingDates)openingDates.style.display=orderFilters.quickView==='concluidas'?'none':'';
  const list=filteredOrders();body.innerHTML=rowsOrders(list);
  // Panorama depende das OS e do período próprio, não do texto pesquisado.
  if(!skipPanorama){const panorama=$('#osWorkspace .os-panorama');if(panorama)panorama.outerHTML=panoramaProduction();}
  const count=$('#ordersFilterCount');
- if(count){const due=sum(list.filter(o=>!isCanceled(o)&&!o.financialUnverified&&hasPrice(o)),amountOwed);const dr=orderDateRange();count.innerHTML=`${dr?`<span class="pill blue">${safe(dr.label)} · abertura</span> &nbsp;`:''}<strong>${list.length}</strong> de ${db.orders.length} OS exibidas &nbsp;·&nbsp; <span class="owed-amount">${brl(due)} confirmado a receber</span>${list.some(o=>o.financialUnverified)?` · ${list.filter(o=>o.financialUnverified).length} pagamentos a conferir`:''} (exclui canceladas)`;}
+ if(count){const due=sum(list.filter(o=>!isCanceled(o)&&!o.financialUnverified&&hasPrice(o)),amountOwed);const dr=orderDateRange();count.innerHTML=`${dr?`<span class="pill blue">${safe(dr.label)} · ${orderFilters.quickView==='concluidas'?'conclusão':'abertura'}</span> &nbsp;`:''}<strong>${list.length}</strong> de ${db.orders.length} OS exibidas &nbsp;·&nbsp; <span class="owed-amount">${brl(due)} confirmado a receber</span>${list.some(o=>o.financialUnverified)?` · ${list.filter(o=>o.financialUnverified).length} pagamentos a conferir`:''} (exclui canceladas)`;}
  updateInlinePaymentSummary();updateBulkControls();
  }finally{v27OrderSearchMemo=priorMemo;}
 }
@@ -1734,7 +1742,7 @@ function followAdvancedOrder(id,previous,newStatus){
  if(!followStageOn||previous===newStatus)return;
  if(newStatus==='Concluída'&& !orderFilters.showPaidCompleted){
   // Visão explícita de concluídas: não desmarca o controle de ocultação.
-  orderFilters.quickView='concluidas';orderFilters.statuses.clear();
+  orderFilters.quickView='concluidas';orderFilters.completionMonth=today().slice(0,7);orderFilters.statuses.clear();
  }else{
   if(orderFilters.quickView==='concluidas')orderFilters.quickView='';
   if(orderFilters.statuses.size)orderFilters.statuses=new Set([newStatus]);
@@ -1742,7 +1750,7 @@ function followAdvancedOrder(id,previous,newStatus){
  // Se outro filtro ainda ocultar a OS, mostrá-la na etapa nova para que a
  // rolagem nunca deixe o operador procurando o pedido depois de avançar.
  if(!filteredOrders().some(o=>String(o.id)===String(id))){
-  orderFilters.quickView=newStatus==='Concluída'?'concluidas':'';
+  orderFilters.quickView=newStatus==='Concluída'?'concluidas':'';if(newStatus==='Concluída')orderFilters.completionMonth=today().slice(0,7);
   orderFilters.statuses=newStatus==='Concluída'?new Set():new Set([newStatus]);
   orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';
   orderFilters.search='';orderFilters.dateMode='all';
@@ -2164,7 +2172,7 @@ function ordersPage(){
    ${quickOrderViews()}
    <label class="os-filter-field">Pagamento<select class="select order-filter" id="filterPayment" data-filter="payment"><option value="">Todos os pagamentos</option><option value="review" ${orderFilters.payment==='review'?'selected':''}>A conferir (importada do Excel)</option><option value="pending" ${orderFilters.payment==='pending'?'selected':''}>A cobrar (em aberto)</option><option value="none" ${orderFilters.payment==='none'?'selected':''}>Não pago (valor definido)</option><option value="unpriced" ${orderFilters.payment==='unpriced'?'selected':''}>Pendente · preço a definir</option><option value="partial" ${orderFilters.payment==='partial'?'selected':''}>Pago parcialmente</option><option value="full" ${orderFilters.payment==='full'?'selected':''}>Pago integralmente</option></select></label>
    <label class="os-filter-field">Origem do material<select class="select order-filter" data-filter="materialOrigin"><option value="">Todos os materiais</option><option value="avulso" ${orderFilters.materialOrigin==='avulso'?'selected':''}>Material avulso</option><option value="normal" ${orderFilters.materialOrigin==='normal'?'selected':''}>Estoque normal</option></select></label><label class="os-filter-field">Serviço<select class="select order-filter" id="filterService" data-filter="service"><option value="">Todos os serviços</option>${allServices.map(s=>`<option value="${safe(s)}" ${orderFilters.service===s?'selected':''}>${safe(s)}</option>`).join('')}</select></label>
-   <div class="os-date-controls" aria-label="Filtrar ordens por data de abertura">
+   <div class="os-date-controls" id="osOpeningDates" style="${orderFilters.quickView==='concluidas'?'display:none':''}" aria-label="Filtrar ordens por data de abertura">
     <div class="os-date-title">▣ &nbsp; Data da OS</div>
     <label class="os-filter-field">Período<select id="filterOrderDateMode" class="select"><option value="all" ${orderFilters.dateMode==='all'?'selected':''}>Todas as datas</option><option value="today" ${orderFilters.dateMode==='today'?'selected':''}>Hoje</option><option value="week" ${orderFilters.dateMode==='week'?'selected':''}>Esta semana</option><option value="7" ${orderFilters.dateMode==='7'?'selected':''}>Últimos 7 dias</option><option value="15" ${orderFilters.dateMode==='15'?'selected':''}>Últimos 15 dias</option><option value="30" ${orderFilters.dateMode==='30'?'selected':''}>Últimos 30 dias</option><option value="month" ${orderFilters.dateMode==='month'?'selected':''}>Mês específico</option><option value="custom" ${orderFilters.dateMode==='custom'?'selected':''}>Personalizado</option></select></label>
     ${orderFilters.dateMode==='month'?`<label class="os-filter-field">Escolher mês<input id="filterOrderDateMonth" type="month" class="input" value="${safe(orderFilters.dateMonth)}"></label>`:''}
@@ -2249,7 +2257,7 @@ function openInlineEditor(id){
  if(editingOrderId===id){editingOrderId=null;inlineDraftPayments=[];refreshOrdersList();return}
  editingOrderId=id;inlineDraftPayments=structuredClone(o.payments||[]);
  // A tabela original permanece visível e a própria linha abre um editor logo abaixo.
- if(!filteredOrders().some(x=>x.id===id)){orderFilters.search='';orderFilters.status='';orderFilters.statuses.clear();orderFilters.service='';orderFilters.payment='';orderFilters.quickView=o.status==='Concluída'?'concluidas':'';render()}
+ if(!filteredOrders().some(x=>x.id===id)){orderFilters.search='';orderFilters.status='';orderFilters.statuses.clear();orderFilters.service='';orderFilters.payment='';orderFilters.quickView=o.status==='Concluída'?'concluidas':'';if(o.status==='Concluída')orderFilters.completionMonth=validISO(o.completedAt)?o.completedAt.slice(0,7):'all';render()}
  else refreshOrdersList();
  updateInlinePaymentSummary();
  const row=$('#inlineOsEditor');if(row){row.scrollIntoView({behavior:'smooth',block:'nearest'});row.querySelector('#ieClient')?.focus({preventScroll:true})}
@@ -4941,7 +4949,7 @@ function handleAction(action,id,element){switch(action){
  case 'stock-package':editPackage(id);break;
  case 'stock-archived':stockShowArchived=!stockShowArchived;render();break;
  case 'stock-scrap':recordScrap(id);break;case 'stock-scrap-used':{const x=db.scraps.find(v=>v.id===id);if(x&&window.confirm('Marcar a sobra como utilizada?')){x.available=false;persist();render()}break;}
- case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'v26-batch-resume':v26ResumePrintBatch();break;case 'v26-batch-skip':v26SkipPrintBatch();break;case 'v26-batch-stop':v26CancelPrintBatch();break;case 'bulk-cancel':runBulk('cancel');break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'os-material-type':{const chosen=element.dataset.materialType||'';orderFilters.materialType=orderFilters.materialType===chosen?'':chosen;refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.materialType='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
+ case 'dash-drill':{const target=element.dataset.page||'os';go(target);if(target==='os'&&element.dataset.statuses==='__AVULSO__'){orderFilters.materialOrigin='avulso';orderFilters.statuses.clear();orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.search='';orderFilters.dateMode='all';render();}else if(target==='os'&&element.dataset.statuses){orderFilters.materialOrigin='';orderFilters.quickView='';orderFilters.statuses=new Set(element.dataset.statuses.split(';'));refreshOrdersList()}break;}case 'bulk-next':runBulk('next');break;case 'v26-batch-resume':v26ResumePrintBatch();break;case 'v26-batch-skip':v26SkipPrintBatch();break;case 'v26-batch-stop':v26CancelPrintBatch();break;case 'bulk-cancel':runBulk('cancel');break;case 'new-os':newOS();break;case 'v22-open-package':v22OpenPackage(id);break;case 'v21-open-whatsapp':v21OpenWhatsApp(id);break;case 'v21-copy-phone':v21CopyPhone(id);break;case 'v21-edit-price':v21EditOrderTotal(id);break;case 'view-os':openOSFocus(id);break;case 'edit-services':newOS(id);break;case 'os-quick':{const view=element.dataset.view||'';orderFilters.quickView=orderFilters.quickView===view?'':view;orderFilters.statuses.clear();refreshOrdersList();break;}case 'os-completion-history':{orderFilters.completionMonth=orderFilters.completionMonth==='all'?today().slice(0,7):'all';refreshOrdersList();break;}case 'os-material-type':{const chosen=element.dataset.materialType||'';orderFilters.materialType=orderFilters.materialType===chosen?'':chosen;refreshOrdersList();break;}case 'stage-filter':{const chosen=element.dataset.status||'';orderFilters.quickView='';if(!chosen||orderFilters.statuses.has(chosen))orderFilters.statuses.clear();else orderFilters.statuses=new Set([chosen]);refreshOrdersList();break;}case 'import-excel-os':$('#excelOSFile').click();break;case 'edit-os':openInlineEditor(id);break;case 'inline-cancel':closeInlineEditor();break;case 'inline-save':saveInlineEditor();break;case 'inline-add-payment':addInlinePayment();break;case 'inline-remove-payment':{const i=Number(element.dataset.index);if(Number.isInteger(i)&&i>=0&&i<inlineDraftPayments.length){inlineDraftPayments.splice(i,1);paintInlinePayments()}break;}case 'toggle-panorama':togglePanorama();break;case 'panorama-stage':{const v=element.dataset.status||'';orderFilters.quickView='';if(!v||orderFilters.statuses.has(v))orderFilters.statuses.clear();else orderFilters.statuses=new Set([v]);refreshOrdersList();break;}case 'edit-next':editNext(id);break;case 'advance-os':advanceOrder(id);break;case 'clear-os-filters':{orderFilters.quickView='';orderFilters.completionMonth='';orderFilters.search='';orderFilters.status='';orderFilters.payment='';orderFilters.service='';orderFilters.materialOrigin='';orderFilters.materialType='';orderFilters.statuses.clear();orderFilters.dateMode='all';orderFilters.dateMonth=today().slice(0,7);orderFilters.dateFrom=today();orderFilters.dateTo=today();render();break;}case 'import-excel-expenses':$('#excelExpensesFile').click();break;case 'stock-conference':stockConference();break;
  case 'v20-stock-filter':{const mode=element.dataset.mode||'';stockFilters.conference=stockFilters.conference===mode?'':mode;render();break;}
  case 'v20-adjust-stock':v20AdjustStock(id);break;
  case 'v20-convert-unit':v20ConvertMaterialUnit(id);break;
@@ -4967,6 +4975,7 @@ $('#content').addEventListener('input',e=>{if(e.target.matches('[data-v21-cash-c
 $('#content').addEventListener('change',e=>{if(e.target.id==='v25DetailType'){v25RefreshMaterialOptions('v25Detail');return;}const c=e.target.closest('[data-v21-cash-filter]');if(c){v21CashFilter(c.dataset.v21CashFilter,c.value);return;}if(e.target.id==='v20ServiceFinish'){v20ServiceRequirements()[v17Focus]=e.target.checked;persist();notify('Padrão de acabamento atualizado para novos serviços desta categoria.');return;}if(e.target.id==='cfgOsDays'||e.target.id==='cfgCustomerDays'||e.target.id==='cfgStockDays'){const k=({cfgOsDays:'osDays',cfgCustomerDays:'customerDays',cfgStockDays:'stockDays'})[e.target.id];db.settings.alerts[k]=Number(e.target.value);persist();paintBell();notify('Prazo dos avisos atualizado.');return;}if(e.target.dataset.alertSetting){db.settings.alerts[e.target.dataset.alertSetting]=e.target.checked;persist();paintBell();return;}if(e.target.id==='panoramaPeriod'||e.target.id==='panoramaFrom'||e.target.id==='panoramaTo'){if(e.target.id==='panoramaPeriod')panoramaState.mode=e.target.value;if(e.target.id==='panoramaFrom'&&validISO(e.target.value))panoramaState.from=e.target.value;if(e.target.id==='panoramaTo'&&validISO(e.target.value))panoramaState.to=e.target.value;const pane=$('#osWorkspace .os-panorama');if(pane)pane.outerHTML=panoramaProduction();return;}if(e.target.id==='stockUnitFilter'||e.target.id==='stockLevelFilter'||e.target.id==='stockControlFilter'){
   const key={stockUnitFilter:'unit',stockLevelFilter:'level',stockControlFilter:'control'}[e.target.id];stockFilters[key]=e.target.value;render();return;
  }if(e.target.id==='filterOrderDateMode'){orderFilters.dateMode=e.target.value;render();return;}
+ if(e.target.id==='filterCompletionMonth'){if(/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value)){orderFilters.completionMonth=e.target.value;refreshOrdersList();}return;}
  if(e.target.id==='filterOrderDateMonth'){if(/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value))orderFilters.dateMonth=e.target.value;refreshOrdersList();return;}
  if(e.target.id==='filterOrderDateFrom'){if(validISO(e.target.value))orderFilters.dateFrom=e.target.value;refreshOrdersList();return;}
  if(e.target.id==='filterOrderDateTo'){if(validISO(e.target.value))orderFilters.dateTo=e.target.value;refreshOrdersList();return;}
